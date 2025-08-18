@@ -1,0 +1,6 @@
+# Virtual environment
+.venv*
+
+# Sensitive data and credentials
+*.env
+/data
