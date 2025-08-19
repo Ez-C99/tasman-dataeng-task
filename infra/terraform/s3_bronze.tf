@@ -24,13 +24,13 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "bronze" {
   }
 }
 
-# Lifecycle: transition raw after 30 days to Glacier Instant Retrieval and expire after 180
+# Lifecycle: transition bronze after 30 days to Glacier Instant Retrieval and expire after 180
 resource "aws_s3_bucket_lifecycle_configuration" "bronze" {
   bucket = aws_s3_bucket.bronze.id
   rule {
-    id     = "raw-transition-and-expire"
+    id     = "bronze-transition-and-expire"
     status = "Enabled"
-    filter { prefix = "raw/" }
+    filter { prefix = "bronze/" }
 
     transition {
       days          = 30
