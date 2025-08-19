@@ -2,6 +2,18 @@
 
 A diary of the design and development of my solution
 
+## 2025-08-19 - Title
+
+### Actions
+
+- Description
+
+### Notes
+
+- Description
+
+---
+
 ## 2025-08-18 - Design doc and architecture finalising + development initialisation
 
 ### Actions
