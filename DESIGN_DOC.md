@@ -1,4 +1,19 @@
-# Plan
+# Design and Plannig Document
+
+## Decision Log (ADRs)
+
+| ID | Title | Status | Date | Link |
+|---:|---|---|---|---|
+| 0001 | Runtime for the extractor | Accepted | 2025-08-19 | [ADR-0001](docs/architecture/decisions/0001-runtime-extractor.md) |
+| 0002 | Scheduling & orchestration | Accepted | 2025-08-19 | [ADR-0002](docs/architecture/decisions/0002-scheduling.md) |
+| 0003 | Operational data store | Accepted | 2025-08-19 | [ADR-0003](docs/architecture/decisions/0003-database.md) |
+| 0004 | Data model shape | Accepted | 2025-08-19 | [ADR-0004](docs/architecture/decisions/0004-data-model-shape.md) |
+| 0005 | Idempotency & primary key strategy | Accepted | 2025-08-19 | [ADR-0005](docs/architecture/decisions/0005-idempotency-key-upsert.md) |
+| 0006 | Secrets management | Accepted | 2025-08-19 | [ADR-0006](docs/architecture/decisions/0006-secrets-management.md) |
+| 0007 | API paging and limits | Accepted | 2025-08-19 | [ADR-0007](docs/architecture/decisions/0007-api-paging-and-limits.md) |
+| 0008 | DB security and durability | Accepted | 2025-08-19 | [ADR-0008](docs/architecture/decisions/0008-db-security-and-durability.md) |
+| 0009 | Data quality strategy | Accepted | 2025-08-19 | [ADR-0009](docs/architecture/decisions/0009-data-quality.md) |
+| 0010 | Integration testing approach | Accepted | 2025-08-19 | [ADR-0010](docs/architecture/decisions/0010-integration-testing.md) |
 
 1. Gather Requirements
 2. Theory recap

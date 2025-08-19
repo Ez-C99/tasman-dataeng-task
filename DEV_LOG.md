@@ -2,11 +2,12 @@
 
 A diary of the design and development of my solution
 
-## 2025-08-18 - [TBD]
+## 2025-08-18 - Design doc and architecture finalising
 
 ### Actions
 
-- [TBD]
+- Cross-referenced my completed design doc with fundamentals, best practices and an LLM to refine it.
+- Generated the ADRs with LLM based on my finalised deisgn and architecture (see docs/architecture/decisions)
 
 ### Notes
 

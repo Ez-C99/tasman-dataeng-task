@@ -4,3 +4,5 @@
 # Sensitive data and credentials
 *.env
 /data
+
+.DS_Store
