@@ -47,9 +47,12 @@ line-length = 100
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint]
 select = ["E","F","I","B","UP","PIE","C4","SIM"]
 
 [tool.mypy]
 python_version = "3.11"
 strict = false
 warn_unused_ignores = true
+mypy_path = "$MYPY_CONFIG_FILE_DIR/src" 

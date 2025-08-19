@@ -8,7 +8,7 @@ lint:
 	ruff check .
 
 type:
-	mypy app
+	mypy --pretty src
 
 unit:
 	pytest -q tests/unit
@@ -27,9 +27,13 @@ up:
 down:
 	docker compose -f docker/docker-compose.yml down -v
 
-# Link checker (lychee) – uses Docker
+# Link checker (Lychee)
 LYCHEE_DOCKER=lycheeverse/lychee:latest
-LYCHEE_OPTS?=--no-progress --exclude-mail --verbose
-LYCHEE_INPUTS=docs/**/*.md README.md DESIGN_DOC.md
+LYCHEE_OPTS?=--no-progress --verbose
+
 links:
-	docker run --rm --init -v "$$(pwd)":/input -e GITHUB_TOKEN $(LYCHEE_DOCKER) $(LYCHEE_OPTS) /input/$(LYCHEE_INPUTS)
+	docker run --rm --init \
+	  -v "$$PWD:/input" \
+	  -e GITHUB_TOKEN \
+	  $(LYCHEE_DOCKER) $(LYCHEE_OPTS) \
+	  /input/docs /input/README.md /input/DESIGN_DOC.md

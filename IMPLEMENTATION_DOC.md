@@ -21,12 +21,11 @@ Configure the starting state of the repo and setup the environment(s) to support
 
 - The setup doesn't play well with each other
 
-#### Notes and LLM Prompts
+#### Notes
 
 - The repo structure isn't necessarily set in stone and may need to be changed as I develop the solution
 - Because of the boilerplate and lack of actual dev work in this section, most of it can be offloaded to the LLM and I'll double check after
 - I've had some Python3.12 issues in the past in general so I need to make sure that the `python:3.12-slim` in my Dockerfile plays nice
-- (prompt)  "Below is my repo so far... Please give me the full repo setup and structure I'll for the rest of the project"
 
 **Repo Structure**
 The is the starting state of the repo. Based on the extensive design and planning I put in the design doc, I was able to start off with some the basic structure of a `README.md`,  `.gitignore` my design doc and ADRs. From this I could feed them into an LLM to give me a suggested repo structure based on everything I've designed and planned for the project so far
@@ -114,6 +113,12 @@ One file to declare runtime dependencies, dev tooling, and (optionally) build me
 
 > FoDE lens: **Choose common components wisely**; standard packaging keeps things interoperable and easy to reproduce.
 
+Alternatives (LLM-given):
+
+- **Poetry**: lockfile + nice UX if you value a single tool for deps/build/publish. Trade-off: different workflow, lockfile churn in PRs. [python-poetry.org](https://python-poetry.org/docs/?utm_source=chatgpt.com)[GitHub](https://github.com/python-poetry/poetry?utm_source=chatgpt.com)[Real Python](https://realpython.com/dependency-management-python-poetry/?utm_source=chatgpt.com)
+- **Hatch**: modern project manager + envs; fast and PEP 621-aligned. Trade-off: new tooling to learn. [hatch.pypa.io+1](https://hatch.pypa.io/?utm_source=chatgpt.com)[Python Packaging](https://packaging.python.org/key_projects/?utm_source=chatgpt.com)
+- **pip-tools / uv**: keep your `pyproject.toml`, generate pinned `requirements.txt` deterministically (`pip-compile`) or use **uv** (very fast pip/pip-tools replacement). Trade-off: another command step. [pip-tools.readthedocs.io+1](https://pip-tools.readthedocs.io/?utm_source=chatgpt.com)[astral.sh](https://astral.sh/blog/uv?utm_source=chatgpt.com)
+
 ##### `Dockerfile`
 
 Multi-stage build --> slim runtime + non-root user --> safer, smaller image. Healthcheck verifies importability.
@@ -132,6 +137,10 @@ Compose spins up Postgres + the ETL; `depends_on` with a **healthcheck** ens
 
 > FoDE lens: **Loosely coupled**; each service is replaceable.
 
+Alternatives (LLM-given):
+
+- Good for local. Alternative is a **Dev Container** (VS Code) for fully reproducible dev shells; or skip Compose and run Postgres via **Testcontainers** only in tests. (You’ll already use Testcontainers for integration tests.)
+
 ##### `.env.example`
 
 Documented **environment variables** for config. Commit this file; never commit a real `.env`. This follows the 12-Factor **Config** principle.
@@ -139,6 +148,10 @@ Documented **environment variables** for config. Commit this file; never commi
 - Keep secrets out of git; in cloud, use Secrets Manager (later via Terraform).
 
 > FoDE lens: **Reversible decisions**—env-driven config makes swapping services trivial.
+
+Alternatives (LLM-given):
+
+- Perfect for local. In cloud, **Secrets Manager** for real secrets; keep envs orthogonal per 12-Factor (env vars as config).
 
 ##### `Makefile`
 
@@ -157,3 +170,31 @@ Auto-fix and guardrails on every commit with **pre-commit**. Hooks: **ruff**,�
 - Ruff is a fast “kitchen-sink” linter replacing many plugins; Black is the opinionated formatter; mypy adds static checks.
 
 > FoDE lens: **Software engineering hygiene** → fewer defects, consistent style.
+
+Alternatives (LLM-given):
+
+- Your set is great. Alternatives: add `trailing-whitespace`, `end-of-file-fixer`, and `check-yaml/JSON/TOML` hooks for docs/config hygiene.
+
+#### Sanity Checks and Results
+
+- `pip install -e ".[dev]"`
+- `pre-commit install`
+- `make up` (starts DB + builds ETL image)
+- `make test` (runs linters, types, unit+integration)
+- `make links` (docs link check)
+
+The first requirements install failed due to `setuptools` trying to treat my top-level folders (`app`, `data`, `infra`, `docker`) as packages, so it bailed out. The fixes were as below and in [this commit](https://github.com/Ez-C99/tasman-dataeng-task/commit/ca5b6cec60a8ba7a63f2095e8b6869932c139b86):
+
+- Switch to standard `src/` package definition
+- Update `pyproject.toml` and pin discovery to `src/` properly
+- Fix Python imports and entrypoint in `Dockerfile`
+- Upgrade pip and retry the install
+
+More fixes were made in the commit after this to fix `mypy` pathing and the docker `make links` functionality.
+
+#### LLM Prompts
+
+- "Below is my repo so far... Please give me the full repo setup and structure I'll for the rest of the project"
+- "Please give me the boilerplate config I'll need in the starter files for development. namely pyproject, Dockerfile, compose, env, Makefile, pre-commit"
+- "What are some considerable alternatives to my starter file and why?"
+- "Installing requirements isn't working: `{failure log here}`"
