@@ -13,11 +13,13 @@ variable "aws_profile" {
 variable "project" {
   description = "The name of the project"
   type        = string
+  default     = "tasman-task"
 }
 
 variable "env" {
   description = "The environment (e.g. dev, staging, prod)"
   type        = string
+  default     = "dev"
 }
 
 variable "bronze_bucket_name" {
