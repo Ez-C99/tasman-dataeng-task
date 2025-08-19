@@ -32,7 +32,7 @@ The is the starting state of the repo. Based on the extensive design and plannin
 
 ```plaintext
 tasman-dataeng-task   
- ┣ app  
+ ┣ src  
  ┃ ┗ tasman_etl  
  ┃ ┃ ┣ db  
  ┃ ┃ ┃ ┣ migrations  
@@ -198,3 +198,105 @@ More fixes were made in the commit after this to fix `mypy` pathing and the dock
 - "Please give me the boilerplate config I'll need in the starter files for development. namely pyproject, Dockerfile, compose, env, Makefile, pre-commit"
 - "What are some considerable alternatives to my starter file and why?"
 - "Installing requirements isn't working: `{failure log here}`"
+
+### 1. **Bronze Capture (S3)**
+
+**Overview**  
+Persist raw USAJOBS responses per page to S3 (`bronze/date=…/run=…/page=N.json`) to enable replay, audits, and schema evolution. (Bronze/Silver/Gold pattern.)
+
+#### Tasks
+
+- Write S3 client (boto3) with S3 SHA-256 checksum verification on upload & `put_object` retry.
+- Object keying: `bronze/usajobs/date=YYYY/MM/DD/run={uuid}/page={n}.json`.
+- S3 lifecycle: Standard → Glacier Instant Retrieval @30d; expire @180d.
+
+#### Acceptance Criteria
+
+- Every successful API page stored once; idempotent re-runs don’t duplicate (same run_id).
+- Lifecycle rules visible in bucket management.
+
+#### Risks/Trade-offs
+
+- Extra storage cost; mitigated by lifecycle.
+
+#### Notes
+
+- The plan is to use a the data-lake patterns of a single S3 bucket with different folders for all the medallion layers (like I have in my workplaces so far in my career).
+  - Different buckets is another possible pattern but not necessary for this task
+
+```bash
+s3://<env>-tasman-task-usajobs/
+  bronze/usajobs/...
+  silver/usajobs/...
+  gold/usajobs/...
+```
+
+- Would be good to later add a remote S3 backend to migrate the state to, so it's not just on my machine, but one thing at a time
+- Gzip is good for cutting storage while keeping text-friendly JSON
+
+The S3 object model I want to follow is:
+`s3://<bucket>/bronze/usajobs/date=YYYY/MM/DD/run=<UTC_ISO8601_Z>/page=<NNNN>.json.gz`
+
+- `date=...` & `run=...` make each ingest idempotent and listable.
+- Multiple prefixes distribute load if/when parallelising later.
+
+The gzipped JSON object body should be as below
+
+```json
+{
+  "request": {
+    "endpoint": "/api/search",
+    "params": {"Keyword": "data engineering", "ResultsPerPage": 500, "Page": 1, "LocationName": "Chicago", "Radius": 50},
+    "sent_at": "2025-08-19T16:15:30.123Z"
+  },
+  "response": {
+    "status": 200,
+    "received_at": "2025-08-19T16:15:31.045Z",
+    "headers": {"x-ratelimit-...": "..."},
+    "payload": { "LanguageCode": "EN", "SearchResult": {...} }   // full USAJOBS payload
+  },
+  "ingest": {
+    "ingest_run_id": "20250819T161530Z",
+    "sha256": "<hex>",
+    "bytes_uncompressed": 123456,
+    "notes": "raw page 1 of N"
+  }
+}
+```
+
+Storing the full payload means Silver can always be regenerated
+
+Terraform S3 bucket config requirements:
+
+- Block public access
+- Encrypted
+- Lifecycle should transition after 30 days and delete after 180 (adjustable)
+
+ECS task role needs all the right bucket permissions (put, get, list)
+
+##### DRY and SOLID code
+
+I'm trying to keep the code DRY and SOLID end-to-end, even if it takes longer, so starting here this is the plan
+
+Minimal architecture (interfaces & modules):
+
+- HTTP client (`http/usajobs.py`): a thin wrapper that only knows requests/retries/rate-limit headers. No business logic.
+- Bronze writer (`storage/bronze_s3.py`): accepts an envelope dict and writes to S3 (no knowledge of USAJOBS schema).
+- Models (`models.py`): Pydantic Data Transfer Objects (DTOs) for parsed records; validators keep parsing rules out of business code.
+- Transform (`transform.py`): pure functions from raw JSON --> normalised records; no I/O.
+- Repository (`db/repository.py`): SQL/SQLAlchemy upserts; no parsing or HTTP.
+- Runner (`runner/run.py`): orchestrates (fetch --> persist raw --> validate --> transform --> upsert), wires dependencies via config.
+
+This separation mirrors SOLID:
+
+- **S**ingle Responsibility: each module does one thing.
+- **O**pen/Closed: swap S3 for local FS in tests; swap Postgres for another DB later.
+- **L**iskov: design to interfaces (e.g., `StorageWriter`, `Repository`) so mocks/subclasses are drop-ins.
+- **I**nterface Segregation: tiny, focused protocols (see example below).
+- **D**ependency Inversion: runner depends on abstractions, not concrete boto3/psycopg.
+
+#### LLM Prompts
+
+- "Please generate an IAM task Terraform module for me"
+- “Please generate the unit tests for my bronze_s3.py module”
+- Fixing the fiddly minutiae of linting in general
