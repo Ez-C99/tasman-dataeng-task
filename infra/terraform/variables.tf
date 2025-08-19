@@ -1,3 +1,14 @@
+variable "aws_region" {
+  description = "The AWS region to deploy resources"
+  type        = string
+  default     = "eu-west-2"
+}
+
+variable "aws_profile" {
+  description = "The AWS profile to use"
+  type        = string
+  default     = "tasman-dev"
+}
 
 variable "project" {
   description = "The name of the project"
