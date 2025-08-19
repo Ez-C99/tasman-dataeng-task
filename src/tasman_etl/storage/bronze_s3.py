@@ -63,6 +63,9 @@ def _to_gz_bytes(doc: Mapping[str, Any]) -> bytes:
     """
     Convert a document to gzipped JSON bytes.
 
+    Note:
+        mtime=0 makes the gzip output deterministic (no timestamp), enabling reproducible builds and
+        stable tests.
     :param doc: The document to convert.
     :return: The gzipped JSON bytes.
     """

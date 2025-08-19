@@ -50,7 +50,7 @@ def test_put_json_gz_parameters(monkeypatch, bronze_env):
     captured = {}
 
     class FakeS3:
-        def put_object(self, **kwargs):  # noqa: D401 - simple capture
+        def put_object(self, **kwargs):
             captured.update(kwargs)
             return {"ETag": '"deadbeef"'}
 
