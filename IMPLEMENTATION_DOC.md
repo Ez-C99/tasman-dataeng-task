@@ -13,7 +13,7 @@ Configure the starting state of the repo and setup the environment(s) to support
 - Setup all environment and config files
 - Verify the setup works cohesively
 
-#### Acceptance criteria
+#### Acceptance Criteria
 
 - Repo is ready for *smooth* (I hope) development
 
