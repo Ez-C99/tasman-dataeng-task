@@ -2,7 +2,7 @@
 
 fmt:
 	ruff check --select I --fix .
-	black .
+	ruff format .
 
 lint:
 	ruff check .

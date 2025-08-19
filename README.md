@@ -11,7 +11,7 @@ tasman-dataeng-task
 ├─ LICENSE
 ├─ Makefile
 ├─ README.md
-├─ app
+├─ src
 │  └─ tasman_etl
 │     ├─ __init__.py
 │     ├─ config.py
@@ -73,4 +73,4 @@ tasman-dataeng-task
 
 ## Common Terms
 
-"FoDE" = Fundamentals of Data Engienering
+"FoDE" = Fundamentals of Data Engineering

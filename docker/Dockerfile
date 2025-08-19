@@ -18,4 +18,4 @@ RUN pip install --no-cache /wheels/*
 USER appuser
 ENTRYPOINT ["python", "-m", "tasman_etl.runner.run"]
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD python - <<'PY'\nimport importlib; importlib.import_module('tasman_etl.runner.run'); print('ok')\nPY
+  CMD python -c "import importlib; importlib.import_module('tasman_etl.runner.run'); print('ok')"
