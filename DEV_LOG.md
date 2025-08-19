@@ -2,16 +2,28 @@
 
 A diary of the design and development of my solution
 
-## 2025-08-18 - Design doc and architecture finalising
+## 2025-08-18 - Design doc and architecture finalising + development initialisation
 
 ### Actions
 
 - Cross-referenced my completed design doc with fundamentals, best practices and an LLM to refine it.
 - Generated the ADRs with LLM based on my finalised deisgn and architecture (see docs/architecture/decisions)
+- Refined the solution design based on ADRs
+- Setup the starting repo structure, based on design and architecture
 
 ### Notes
 
 - Had to work quite a bit later than 5pm usual to fix some bugs but nothing a little nap to re-energise can't fix.
+- Late/early hours finished but good progress made again. There's still some documentation stuff to refine and clarify but I've seen enough architecture for one night.
+- With the base structure complete now, I can stop committing straight to main and work in branches for each component of the solution.
+
+### To Do
+
+- Implement starter files to support development (pre-commit, requirements, pyproject, docker files etc)
+- Build helper functions for ETL process
+- Implement DDL
+- Implement GitHub Ac
+- Produce architecture diagram for design doc (can be left until end of task in case architecture changes)
 
 ---
 
