@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tasman-etl"
+version = "0.1.0"
+description = "USAJOBS ETL: Chicago-focused data engineering roles → Postgres"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"                 # <-- string SPDX, avoids deprecation warning
+authors = [{ name = "Ezra Chamba" }]
+
+# Runtime deps
+dependencies = [
+  "requests>=2.32",                 # HTTP client
+  "pydantic>=2.7",                  # parse/validate API payloads (v2 validators)
+  "sqlalchemy>=2.0",                # DB engine / SQL
+  "psycopg[binary,pool]>=3.2",      # Postgres driver (v3)
+  "tenacity>=8.3",                  # retries w/ backoff+ jitter
+  "structlog>=24.1",                # JSON logs to stdout
+  "python-dotenv>=1.0",             # local .env dev
+  "boto3>=1.34",                    # S3 bronze (optional)
+  "great-expectations>=0.18.0",     # data quality gate
+  "typing-extensions>=4.11",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.2", "pytest-cov>=5.0",
+  "testcontainers>=4.7.2",
+  "mypy>=1.10", "ruff>=0.5.0",
+  "pre-commit>=3.7",
+]
+
+# ----- tell setuptools where the package is -----
+[tool.setuptools.package-dir]
+"" = "src"                      # project root for packages is ./src
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["tasman_etl*"]
+exclude = ["tests*", "data*", "docker*", "infra*", "docs*"]
+
+[tool.black]
+line-length = 100
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E","F","I","B","UP","PIE","C4","SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = false
+warn_unused_ignores = true
+mypy_path = "$MYPY_CONFIG_FILE_DIR/src"

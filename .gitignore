@@ -1,8 +1,62 @@
-# Virtual environment
-.venv*
-
-# Sensitive data and credentials
-*.env
-/data
-
+# --- OS / Editors ---
 .DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# --- Python build artifacts ---
+__pycache__/
+*.py[cod]
+*$py.class
+build/
+dist/
+*.egg-info/
+.eggs/
+wheels/
+*.egg
+MANIFEST
+
+# --- Virtual envs ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- Caches & reports ---
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.pyre/
+.pytype/
+.coverage
+coverage.xml
+htmlcov/
+
+# --- Env files (keep example) ---
+.env
+.env.*
+!.env.example
+
+# --- Docker / Compose (local only artifacts) ---
+*.log
+
+# --- Terraform ---
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+# Keep dependency lock file tracked (do NOT ignore):
+# .terraform.lock.hcl
+
+# --- Great Expectations (GX) ---
+great_expectations/uncommitted/
+**/gx/uncommitted/
+**/gx/data_docs/
+# If generating Data Docs elsewhere, ignore that folder too:
+# data_docs/
+
+# --- Project data (optional; uncomment if adding raw dumps) ---
+data/
+# data/raw/
+# data/tmp/
