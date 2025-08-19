@@ -23,6 +23,7 @@ Configure the starting state of the repo and setup the environment(s) to support
 
 - The repo structure isn't necessarily set in stone and may need to be changed as I develop the solution
 - Because of the boilerplate and lack of actual dev work in this section, most of it can be offloaded to the LLM and I'll double check after
+- I've had some Python3.12 issues in the past in general so I need to make sure that the `python:3.12-slim` in my Dockerfile plays nice
 - (prompt)  "Below is my repo so far... Please give me the full repo setup and structure I'll for the rest of the project"
 
 **Repo Structure**
@@ -110,3 +111,47 @@ One file to declare runtime dependencies, dev tooling, and (optionally) build me
 - `black`, `ruff`, `mypy` are configured here so CI and local dev are identical.
 
 > FoDE lens: **Choose common components wisely**; standard packaging keeps things interoperable and easy to reproduce.
+
+##### `Dockerfile`
+
+Multi-stage build --> slim runtime + non-root user --> safer, smaller image. Healthcheck verifies importability.
+
+- Multi-stage trims the final image and reduces attack surface.
+- Non-root (`USER appuser`) is a Docker best practice.
+
+> FoDE lens: Prioritise security (least privilege), Plan for failure (healthcheck).
+
+##### `docker-compose.yml`
+
+Compose spins up Postgres + the ETL; `depends_on` with a **healthcheck** ensures DB is ready before the ETL runs.
+
+- `healthcheck` + `depends_on.condition: service_healthy` gives a predictable startup order.
+- Exposes `5432` for psql/GUI clients during development.
+
+> FoDE lens: **Loosely coupled**; each service is replaceable.
+
+##### `.env.example`
+
+Documented **environment variables** for config. Commit this file; never commit a real `.env`. This follows the 12-Factor **Config** principle.
+
+- Keep secrets out of git; in cloud, use Secrets Manager (later via Terraform).
+
+> FoDE lens: **Reversible decisions**—env-driven config makes swapping services trivial.
+
+##### `Makefile`
+
+Fast local ergonomics: **fmt → lint → type → test**; Compose helpers; **link checker** with Lychee (Dockerised). Use `.PHONY` for non-file targets.
+
+- `.PHONY` prevents target/file name collisions.
+- Lychee checks links; `GITHUB_TOKEN` avoids GH rate limits.
+
+> FoDE lens: **DataOps**—automation & fast feedback loops.
+
+##### `.pre-commit-config.yaml`
+
+Auto-fix and guardrails on every commit with **pre-commit**. Hooks: **ruff**, **black**, **mypy**.
+
+- Install once: `pre-commit install` → runs on each commit.
+- Ruff is a fast “kitchen-sink” linter replacing many plugins; Black is the opinionated formatter; mypy adds static checks.
+
+> FoDE lens: **Software engineering hygiene** → fewer defects, consistent style.
