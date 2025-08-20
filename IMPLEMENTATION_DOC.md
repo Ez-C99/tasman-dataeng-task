@@ -7,6 +7,7 @@
 - I tend to leave more comments in my code than the strategy I’ve taken with this project but it’s for a reason.
   - Considering the extensive breakdown and thought process covered by the design doc, this doc and the docstrings, module summaries, branches and PRs throughout, I don’t think all this code **NEEDS** so many comments for the sake of commenting
   - I’m already trying to provide enough documentation, in and out of the code, to tell the story so I don’t want to add too much bloat to what you read
+  - The cases where there are more comments are probably indicative of my learning by doing. This way when I come back to my code for future work, it clicks again more quickly
 - A lot of Python scripts will have `from __future__ import annotations` and that's just to enable postponed evaluation of type annotations
   - Essentially, all annotations are stored as strings and only resolved when needed (such as by type checkers or tools)
   - It's especially useful in complex projects, like this, or when using advanced typing features, as it avoids issues with circular imports and allows for more readable type hints
