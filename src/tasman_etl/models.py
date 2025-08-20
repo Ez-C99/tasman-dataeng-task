@@ -211,12 +211,20 @@ class ApiMatchedObjectDescriptor(BaseModel):
 
 
 class ApiSearchResultItem(BaseModel):
+    """
+    Model representing a singular search result item in the API.
+    """
+
     model_config = _BASE_CONFIG
     MatchedObjectId: str | None = None
     MatchedObjectDescriptor: ApiMatchedObjectDescriptor
 
 
 class ApiSearchResult(BaseModel):
+    """
+    Model representing a search result in the API.
+    """
+
     model_config = _BASE_CONFIG
     SearchResultCount: int
     SearchResultCountAll: int
@@ -224,7 +232,80 @@ class ApiSearchResult(BaseModel):
 
 
 class ApiResponse(BaseModel):
+    """
+    Model representing a response from the API.
+    """
+
     model_config = _BASE_CONFIG
     LanguageCode: str | None = None
     SearchParameters: dict | None = None
     SearchResult: ApiSearchResult
+
+
+# ------------------------------
+# NORMALISED RECORD DTOs (Silver)
+# ------------------------------
+
+
+class JobRecord(BaseModel):
+    """
+    Model representing a job record in the system.
+    """
+
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
+
+    position_id: str
+    matched_object_id: str | None = None
+    position_uri: str
+    position_title: str
+    organization_name: str | None = None
+    department_name: str | None = None
+    apply_uri: list[str] = Field(default_factory=list)
+    position_location_display: str | None = None
+
+    pay_min: int | None = None
+    pay_max: int | None = None
+    pay_rate_interval_code: str | None = None
+    qualification_summary: str | None = None
+
+    publication_start_date: datetime | None = None
+    application_close_date: datetime | None = None
+    position_start_date: datetime | None = None
+    position_end_date: datetime | None = None
+
+    remote_indicator: bool | None = None
+    telework_eligible: bool | None = None
+
+    source_event_time: datetime | None = None
+    ingest_run_id: str | None = None
+    raw_json: dict[str, Any]  # JSONB friendly
+
+    @field_validator("apply_uri", mode="before")
+    @classmethod
+    def _listify_apply(cls, v: Any) -> list[str]:
+        """
+        Ensure the apply_uri field is always a list of strings.
+
+        :param v: The value to validate.
+        :return: A list of strings.
+        """
+        if v is None:
+            return []
+        if isinstance(v, list):
+            return [str(x) for x in v]
+        return [str(v)]
+
+    @field_validator("pay_max", mode="after")
+    @classmethod
+    def _min_le_max(cls, v: int | None, info) -> int | None:
+        """
+        Ensure that pay_min is less than or equal to pay_max.
+
+        :param v: The value of pay_max.
+        :param info: The validation info.
+        :return: The validated value of pay_max.
+        """
+        pay_min = info.data.get("pay_min")
+        if v is not None and pay_min is not None and pay_min > v:
+            raise ValueError("pay_min cannot exceed pay_max")
+        return v
