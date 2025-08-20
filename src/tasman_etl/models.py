@@ -208,3 +208,23 @@ class ApiMatchedObjectDescriptor(BaseModel):
             return None
         d = self.UserArea.get("Details")
         return ApiDetails.model_validate(d) if isinstance(d, dict) else None
+
+
+class ApiSearchResultItem(BaseModel):
+    model_config = _BASE_CONFIG
+    MatchedObjectId: str | None = None
+    MatchedObjectDescriptor: ApiMatchedObjectDescriptor
+
+
+class ApiSearchResult(BaseModel):
+    model_config = _BASE_CONFIG
+    SearchResultCount: int
+    SearchResultCountAll: int
+    SearchResultItems: list[ApiSearchResultItem]
+
+
+class ApiResponse(BaseModel):
+    model_config = _BASE_CONFIG
+    LanguageCode: str | None = None
+    SearchParameters: dict | None = None
+    SearchResult: ApiSearchResult
