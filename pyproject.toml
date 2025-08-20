@@ -61,3 +61,9 @@ python_version = "3.11"
 strict = false
 warn_unused_ignores = true
 mypy_path = "$MYPY_CONFIG_FILE_DIR/src"
+
+[tool.pytest.ini_options]
+filterwarnings = [
+  "ignore:`result_format` configured at the Validator-level will not be persisted.:UserWarning",
+  "ignore:`Number` field should not be instantiated.*:marshmallow.warnings.ChangedInMarshmallow4Warning",
+]

@@ -119,10 +119,23 @@ def validate_page_jobs(
     # validator = context.get_validator(batch=batch, expectation_suite_name="jobs_suite")
 
     # Use the batch_request from the fluent Batch (type-compatible with legacy API)
-    validator = context.get_validator(
-        batch_request=batch.batch_request,  # provides datasource/asset/parameters
-        expectation_suite_name="jobs_suite",
-    )
+    # Obtain or create expectation suite lazily so tests (ephemeral context) succeed.
+    from great_expectations.core.expectation_suite import ExpectationSuite
+    from great_expectations.exceptions.exceptions import DataContextError
+
+    try:
+        validator = context.get_validator(
+            batch_request=batch.batch_request,  # provides datasource/asset/parameters
+            expectation_suite_name="jobs_suite",
+        )
+    except DataContextError:
+        # Suite absent: create empty then retry
+        with contextlib.suppress(Exception):
+            context.suites.add(ExpectationSuite(name="jobs_suite"))
+        validator = context.get_validator(
+            batch_request=batch.batch_request,
+            expectation_suite_name="jobs_suite",
+        )
     validator.expect_column_values_to_not_be_null("position_id")
     validator.expect_column_values_to_not_be_null("position_title")
     validator.expect_column_values_to_match_regex("position_uri", r"^https?://")
@@ -134,11 +147,12 @@ def validate_page_jobs(
     # Run validation directly (no ValidationDefinition / Checkpoint abstraction)
     suite = validator.get_expectation_suite()
     # (Optional) persist suite in context if there;s a need to reuse
-    try:
+    try:  # prefer unified method
         context.suites.add_or_update(suite)
     except AttributeError:
-        # Older versions may use add() then update(); ignore if unsupported
-        contextlib.suppress(AttributeError)
+        # Fallback to add(); ignore if even that is unsupported
+        with contextlib.suppress(AttributeError):
+            context.suites.add(suite)
 
     validation_result = validator.validate()
     # Help static type checker
