@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import Any
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, computed_field, field_validator
 
 # ---- Pydantic config notes ----
 # - Strip whitespace, ignore unknown fields (forward-compatible),
@@ -153,6 +154,12 @@ class ApiDetails(BaseModel):
     )
     @classmethod
     def _yes_no_to_bool(cls, v: Any) -> bool | None:
+        """
+        Convert "yes"/"no" strings to boolean values.
+
+        :param v: The input value to process.
+        :return: The processed boolean value or None.
+        """
         if isinstance(v, bool) or v is None:
             return v
         s = str(v).strip().lower()
@@ -161,3 +168,43 @@ class ApiDetails(BaseModel):
         if s in {"no", "n", "false"}:
             return False
         return v  # let Pydantic coerce or error
+
+
+class ApiMatchedObjectDescriptor(BaseModel):
+    """
+    Model representing a matched object descriptor in the API.
+    """
+
+    model_config = _BASE_CONFIG
+    PositionID: str
+    PositionTitle: str
+    PositionURI: str
+    ApplyURI: list[str] | None = None
+    PositionLocationDisplay: str | None = None
+    PositionLocation: list[ApiPositionLocation] | None = None
+    OrganizationName: str | None = None
+    DepartmentName: str | None = None
+    JobCategory: list[ApiJobCategory] | None = None
+    JobGrade: list[ApiJobGrade] | None = None
+    PositionSchedule: list[dict] | None = None
+    PositionOfferingType: list[dict] | None = None
+    QualificationSummary: str | None = None
+    PositionRemuneration: list[ApiPositionRemuneration] | None = None
+    PositionStartDate: datetime | None = None
+    PositionEndDate: datetime | None = None
+    PublicationStartDate: datetime | None = None
+    ApplicationCloseDate: datetime | None = None
+    UserArea: dict | None = None  # Details nested under UserArea
+
+    @computed_field
+    def details(self) -> ApiDetails | None:
+        """
+        Get the details from the UserArea.
+
+        :return: The details from the UserArea or None.
+        """
+        # Only validate if present and is a dict
+        if not self.UserArea:
+            return None
+        d = self.UserArea.get("Details")
+        return ApiDetails.model_validate(d) if isinstance(d, dict) else None
