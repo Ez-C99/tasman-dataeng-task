@@ -342,3 +342,102 @@ psql "postgresql://postgres:localpw@localhost:5432/usajobs" \
 #### LLM Prompts
 
 - “Please draft the Postgres DDL for job/job_location/job_category/job_details, based on my schema, with sensible types.”
+
+### 3. **Validation Models (Pydantic v2)**
+
+**Overview**  
+Define strict-enough Pydantic models for USAJOBS responses and normalised records. Goals: (1) coerce messy strings to clean types, (2) reject impossible values early, (3) produce DTOs that map 1:1 to Silver tables.
+
+#### Tasks
+
+- Model the USAJOBS raw response (only used fields; ignore the rest).
+- Add validators for:
+  - Pay min/max (strings → `int`, ensure `min <= max`).
+  - Booleans arriving as “Yes/No” → `bool`.
+  - Dates → `datetime` (UTC assumed).
+- Provide normalised DTOs: `JobRecord`, `JobDetailsRecord`, `JobLocationRecord`, `JobCategoryRecord`, `JobGradeRecord`.
+- A helper to parse an entire page (`model_validate_json`) and yield normalised records.
+
+#### Acceptance Criteria
+
+- Parsing a real page yields:
+  - All `JobRecord` fields typed (ints, bools, datetimes).
+  - Lists handled (locations/categories/grades).
+  - Invariants enforced (e.g., `pay_min <= pay_max`).
+- Unit test covers a happy-path item and a couple of edge cleanups (e.g., “Yes” → `True`).
+
+#### Risks/Trade-offs
+
+- Making the models too strict can break on minor upstream drift. I should keep strictness per-field where it matters (pay/date/booleans) and allow extra fields to be ignored for forward compatibility.
+
+#### Notes
+
+Pydantic v2 features as opposed to v1:
+
+- `model_validate(_json)` is the canonical v2 entrypoint; `model_dump()` for safe dicts.
+- `@field_validator` replaces v1 `@validator` and supports before/after modes for coercion vs. checks.
+- `computed_field` lets you surface `details` from `UserArea` without bloating the stored model.
+- I'm intentionally keep model config lax by default (ignore unknowns) but apply strictness to critical fields; that’s “strict mode where it matters.”
+
+> FoDE lens:
+>
+> - Plan for failure: validate at boundaries; fail fast.
+> - Loosely coupled & evolvable: ignore unknown fields; keep `raw_json` stored in Silver for “reach-back.”
+> - Software hygiene: clear separation—parsing in models, I/O elsewhere.
+
+How this module will (hopefully) seamlessly fit into the bigger picture:
+
+- Runner* calls `parse_page_json(...)` on the USAJOBS response body, then `normalise_item(...)` per item.
+- The returned DTOs map *directly* to Silver upsert SQL you have ready.
+- This keeps concerns clean: HTTP fetch -> Bronze write -> Validate/normalise (here) -> Silver upsert.
+
+#### LLM Prompts
+
+- “Please give me a function to normalise my API items into data transfer objects”
+- "Please generate my unit tests for models.py using the following test payload as inspiration"
+
+```python
+    # Minimal synthetic payload mimicking USAJOBS
+    payload = {
+        "LanguageCode": "EN",
+        "SearchResult": {
+            "SearchResultCount": 1,
+            "SearchResultCountAll": 1,
+            "SearchResultItems": [
+                {
+                    "MatchedObjectId": "123",
+                    "MatchedObjectDescriptor": {
+                        "PositionID": "ABCD-1234",
+                        "PositionTitle": "Data Engineer",
+                        "PositionURI": "https://www.usajobs.gov/job/123",
+                        "ApplyURI": ["https://apply.example/apply"],
+                        "PositionLocationDisplay": "Chicago, IL",
+                        "PositionLocation": [
+                            {"LocationName": "Chicago, Illinois, United States",
+                             "CountryCode": "US", "CountrySubDivisionCode": "IL",
+                             "CityName": "Chicago", "Longitude": -87.6298, "Latitude": 41.8781}
+                        ],
+                        "OrganizationName": "Some Agency",
+                        "DepartmentName": "Dept",
+                        "JobCategory": [{"Name": "IT Mgmt", "Code": "2210"}],
+                        "JobGrade": [{"Code": "GS-13"}],
+                        "QualificationSummary": "Do data stuff.",
+                        "PositionRemuneration": [{"MinimumRange": "$95,000", "MaximumRange": "120,000", "RateIntervalCode": "PA"}],
+                        "PublicationStartDate": "2025-08-01T00:00:00Z",
+                        "ApplicationCloseDate": "2025-08-31T23:59:59Z",
+                        "UserArea": {
+                            "Details": {
+                                "JobSummary": "Summary",
+                                "DrugTestRequired": "Yes",
+                                "TeleworkEligible": True,
+                                "RemoteIndicator": False,
+                                "MajorDuties": ["A", "B"]
+                            }
+                        }
+                    }
+                }
+            ]
+        }
+    }
+
+```
