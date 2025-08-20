@@ -199,6 +199,8 @@ More fixes were made in the commit after this to fix `mypy` pathing and the dock
 - "What are some considerable alternatives to my starter file and why?"
 - "Installing requirements isn't working: `{failure log here}`"
 
+---
+
 ### 1. **Bronze Capture (S3)**
 
 **Overview**  
@@ -301,6 +303,8 @@ This separation mirrors SOLID:
 - “Please generate the unit tests for my bronze_s3.py module”
 - Fixing the fiddly minutiae of linting in general
 
+---
+
 ### 2. **Schema & Migration (Silver DDL)**
 
 **Overview**  
@@ -342,6 +346,8 @@ psql "postgresql://postgres:localpw@localhost:5432/usajobs" \
 #### LLM Prompts
 
 - “Please draft the Postgres DDL for job/job_location/job_category/job_details, based on my schema, with sensible types.”
+
+---
 
 ### 3. **Validation Models (Pydantic v2)**
 
@@ -441,3 +447,53 @@ How this module will (hopefully) seamlessly fit into the bigger picture:
     }
 
 ```
+
+---
+
+### 4. **Transformation (Normalise to Silver)**
+
+**Overview**  
+Explode multi-valued fields (`PositionLocation`, `JobCategory`) into child rows; map codelists to human-readable labels. Keep arrays (e.g., `HiringPath`) in JSONB initially; index later if needed.
+
+#### Tasks
+
+- Pure functions in `transform.py` from parsed model → `{job, locations, categories, details}` dicts.
+- Add codelist client & cache.
+
+#### Acceptance Criteria
+
+- Given a recorded sample page, produce deterministic row sets.
+
+#### Risks/Trade-offs
+
+- Slight complexity vs. queryability.
+
+#### Notes
+
+- USAJOBS exposes Codelist endpoints (no auth) for things like schedule types and you can fetch them to map codes to human-readable labels during transform
+- Their developer docs describe both the search response shape (e.g., `SearchResultItems` and `MatchedObjectDescriptor`) and the codelists and how to call them.
+
+##### `src/tasman_etl/http/codelists.py`
+
+A small client with in-memory TTL cache
+
+##### `src/tasman_etl/transform.py`
+
+Pure functions that:
+
+- iterate the parsed page,
+- use your existing Pydantic DTOs (`normalise_item` from `models.py`),
+- (optionally) enrich a couple of coded fields via `CodelistClient`,
+- return row dicts ready for loading.
+
+##### How this fits the SOLID/DRY plan
+
+- **Pure transforms**: no I/O or DB knowledge in `transform.py`.
+- **Separation of concerns**: `http.codelists` only knows how to fetch & cache code lists (and is optional).
+- **Stable DTO boundary**: you already validate and coerce with Pydantic; the loader will consume these dicts next.
+
+#### LLM Prompts
+
+- “Please generate the transform tests based on the module”
+
+---
