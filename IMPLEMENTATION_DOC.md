@@ -486,6 +486,25 @@ Pure functions that:
 - (optionally) enrich a couple of coded fields via `CodelistClient`,
 - return row dicts ready for loading.
 
+You'll see that I declared the 'Bundle' class with a dataclass decorator of the parameter `(frozen=True)`. This means:
+
+- You can’t reassign fields after you create the object (trying raises an error)
+- Only the attribute names are locked; if a field holds a list/dict, its contents can still change.
+- Safe to use as a dict key or in a set (hashable by default).
+- Use immutable types (e.g. tuple) to not change inner data.
+
+This is a practice I'll maintain throughout throughout the scriiptsm wherever necessary, for the following reasons:
+
+- Avoids accidental mutation; objects stay stable after creation.
+- Simplifies reasoning, testing, and debugging (pure transforms).
+- Enables safe reuse: hashable for sets/deduplication/cache.
+- Improves data integrity for ETL, idempotent upserts, and DQ checks.
+- Lowers concurrency & side‑effect risks (read‑only objects).
+- Clear audit trail: raw + derived fields can’t drift pre‑load.
+- Easier refactors (value-object semantics).
+- Facilitates deterministic change detection and memoisation.
+- Encourages immutable inner types where needed for full safety.
+
 ##### How this fits the SOLID/DRY plan
 
 - **Pure transforms**: no I/O or DB knowledge in `transform.py`.
