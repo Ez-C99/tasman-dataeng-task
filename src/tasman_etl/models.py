@@ -406,12 +406,12 @@ def normalise_item(
     list[JobGradeRecord],
 ]:
     """
-    Normalize the API item into the internal data model.
+    Normalise the API item into the internal data model.
 
-    :param item: The API item to normalize.
+    :param item: The API item to normalise.
     :param ingest_run_id: The ID of the ingest run.
     :param source_event_time: The source event time.
-    :return: A tuple containing the normalized job records.
+    :return: A tuple containing the normalised job records.
     """
     d = item.MatchedObjectDescriptor
     # mypy: d.details is a computed_field+property (Pydantic) but static type seen as
