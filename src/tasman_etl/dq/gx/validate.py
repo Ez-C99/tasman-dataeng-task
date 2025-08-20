@@ -137,13 +137,13 @@ def validate_page_jobs(
     if TYPE_CHECKING:
 
         class _PandasDatasource(Protocol):  # pragma: no cover - typing aid
-            def add_dataframe_asset(self, name: str): ...  # noqa: D401
-            def get_asset(self, name: str): ...  # noqa: D401
+            def add_dataframe_asset(self, name: str): ...
+            def get_asset(self, name: str): ...
 
             assets: list[Any]
 
         class _DataFrameAsset(Protocol):  # pragma: no cover - typing aid
-            def add_batch_definition_whole_dataframe(self, name: str): ...  # noqa: D401
+            def add_batch_definition_whole_dataframe(self, name: str): ...
 
             batch_definitions: list[Any]
 
