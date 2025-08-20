@@ -588,7 +588,7 @@ Small suite: non-nulls on keys, pay range sanity, URL regex, date ordering, ≥1
 
 #### Notes
 
-> [!caution] 
+> [!caution]
 > It's important for the functioning of this implementation of the GE suite to note exceed `pandas<2.0` becasue it breaks the `src/tasman_etl/dq/gx/validate.py` module. This has been reflected in `pyproject.toml` but would need further research down the line if pandas needed to be upgraded.
 
 - Started with a normal plug-n-play gx system that I normally follow for a suite but I was lead down a great learning path of the library when trying to tailor my solution to the wider context of this project. I'll have the LLM generate a summary of my findings below
