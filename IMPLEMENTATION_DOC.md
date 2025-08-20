@@ -670,6 +670,14 @@ Summary:
 - For arbitrary iterable you don’t need to preserve: next(iter(x), None) is not None (lazy).
 - Avoid len(list(x))—it’s the most expensive form.
 
+##### DQ smoke harness
+
+YI introduced a tiny “DQ smoke harness” to validate a representative page quickly and visibly:
+
+- A cached Great Expectations context via the public API (`gx.get_context()`), plus idempotent creation/retrieval of a pandas datasource and dataframe asset. This keeps repeated page validations cheap and future-proofs against internal module moves.
+- Expectations cover non-nulls, URL regex, pay bounds, and a Python-side check that at least one location row exists. The validator runs directly against a pandas batch and persists/updates the suite if missing.
+- Additional `dq` and further `smoke` commands in the Makefile to quickly run the gx smoke test. This also allows for further automated smoke testing later
+
 #### LLM Prompts
 
 - “What's wrong with my suite?” - fix linting errors

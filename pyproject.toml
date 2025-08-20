@@ -22,7 +22,7 @@ dependencies = [
   "python-dotenv>=1.0",             # local .env dev
   "boto3>=1.34",                    # S3 bronze (optional)
   "great-expectations>=0.18.0",     # data quality gate
-  "pandas>=1.5",
+  "pandas>=2.2",
   "typing-extensions>=4.11",
 ]
 
@@ -67,3 +67,4 @@ filterwarnings = [
   "ignore:`result_format` configured at the Validator-level will not be persisted.:UserWarning",
   "ignore:`Number` field should not be instantiated.*:marshmallow.warnings.ChangedInMarshmallow4Warning",
 ]
+testpaths = ["tests"]
