@@ -1,4 +1,4 @@
-.PHONY: fmt lint type unit integration test build up down links db-migrate
+.PHONY: fmt lint type unit integration test build up down links db-migrate dq smoke
 
 fmt:
 	ruff check --select I --fix .
@@ -53,3 +53,11 @@ db-migrate:
 			psql "$(PSQL_URL)" -v ON_ERROR_STOP=1 -f "$$f"; \
 		done; \
 	fi
+
+dq:
+	# Use -s to show GE progress + printed expectation summary
+	python -m pytest -s tests/smoke/test_dq_smoke.py
+
+smoke:
+	# -s disables output capture so GE tqdm progress bars & warnings are visible; remove -q for full detail
+	python -m pytest -s tests/smoke
