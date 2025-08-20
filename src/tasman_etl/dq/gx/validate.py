@@ -3,9 +3,10 @@ from __future__ import annotations
 import contextlib
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
+import great_expectations as gx
 import pandas as pd
-from great_expectations.data_context.data_context.context_factory import get_context
 from tasman_etl.models import JobLocationRecord, JobRecord
 
 
@@ -85,6 +86,25 @@ def _has_locations(loc_rows: Iterable[JobLocationRecord]) -> bool:
     return len(list(loc_rows)) >= 1
 
 
+# Cached context instance (lazy init); keeps repeated page validations cheap in one run.
+_GX_CONTEXT = None  # module-private
+
+
+def _get_gx_context():  # small indirection for test monkeypatching
+    global _GX_CONTEXT
+    if _GX_CONTEXT is None:
+        # Some versions expose get_context at package root; fallback to factory if absent.
+        getter = getattr(gx, "get_context", None)
+        if getter is None:  # defensive fallback
+            from great_expectations.data_context.data_context.context_factory import (
+                get_context as _gc,
+            )
+
+            getter = _gc
+        _GX_CONTEXT = getter()
+    return _GX_CONTEXT
+
+
 def validate_page_jobs(
     jobs: list[JobRecord],
     locations: list[JobLocationRecord],
@@ -108,11 +128,59 @@ def validate_page_jobs(
 
     df = _jobs_dataframe(jobs)
 
-    # Ephemeral GX context / pandas datasource
-    context = get_context()
-    pandas_ds = context.data_sources.add_pandas("pandas_default")
-    asset = pandas_ds.add_dataframe_asset("jobs_asset")
-    batch_def = asset.add_batch_definition_whole_dataframe("whole_df")
+    # Obtain (or lazily create) Great Expectations Data Context via public API
+    context = _get_gx_context()
+    # Idempotently obtain pandas datasource (tests call multiple times in one process)
+    from great_expectations.exceptions.exceptions import DataContextError as _GXDCError
+
+    # Lightweight Protocols for static typing without ignores
+    if TYPE_CHECKING:
+
+        class _PandasDatasource(Protocol):  # pragma: no cover - typing aid
+            def add_dataframe_asset(self, name: str): ...  # noqa: D401
+            def get_asset(self, name: str): ...  # noqa: D401
+
+            assets: list[Any]
+
+        class _DataFrameAsset(Protocol):  # pragma: no cover - typing aid
+            def add_batch_definition_whole_dataframe(self, name: str): ...  # noqa: D401
+
+            batch_definitions: list[Any]
+
+    # Obtain or fetch existing datasource
+    try:
+        _pandas_ds = context.data_sources.add_pandas("pandas_default")
+    except _GXDCError as err:
+        get_fn = getattr(context.data_sources, "get", None)
+        if not callable(get_fn):
+            raise RuntimeError("pandas_default datasource not found") from err
+        _pandas_ds = get_fn("pandas_default")
+
+    pandas_ds = cast("_PandasDatasource", _pandas_ds)
+
+    # Idempotent dataframe asset
+    try:
+        _asset = pandas_ds.add_dataframe_asset("jobs_asset")
+    except ValueError:
+        get_asset_fn = getattr(pandas_ds, "get_asset", None)
+        if callable(get_asset_fn):
+            _asset = get_asset_fn("jobs_asset")
+        else:
+            _asset = next(
+                a
+                for a in getattr(pandas_ds, "assets", [])
+                if getattr(a, "name", None) == "jobs_asset"
+            )
+    asset = cast("_DataFrameAsset", _asset)
+
+    # Idempotent batch definition retrieval/creation
+    try:
+        batch_def = asset.add_batch_definition_whole_dataframe("whole_df")
+    except ValueError:
+        existing_defs = getattr(asset, "batch_definitions", [])
+        batch_def = next(bd for bd in existing_defs if getattr(bd, "name", None) == "whole_df")
+    if batch_def is None:  # defensive typing guard
+        raise RuntimeError("Batch definition 'whole_df' could not be resolved")
     batch = batch_def.get_batch(batch_parameters={"dataframe": df})
 
     # Old (causes type complaint):
