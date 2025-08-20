@@ -2,6 +2,14 @@
 
 ## Implementation
 
+### General Overview
+
+- I tend to leave more comments in my code than the strategy I’ve taken with this project but it’s for a reason.
+  - Considering the extensive breakdown and thought process covered by the design doc, this doc and the docstrings, module summaries, branches and PRs throughout, I don’t think all this code **NEEDS** so many comments for the sake of commenting
+  - I’m already trying to provide enough documentation, in and out of the code, to tell the story so I don’t want to add too much bloat to what you read
+
+---
+
 ### 0. Starter Files and Config
 
 **Overview**
@@ -502,7 +510,7 @@ This is a practice I'll maintain throughout throughout the scripts wherever nece
 - Lowers concurrency & side‑effect risks (read‑only objects).
 - Clear audit trail: raw + derived fields can’t drift pre‑load.
 - Easier refactors (value-object semantics).
-- Facilitates deterministic change detection and memoisation.
+- Facilitates deterministic change detection and memoisation. (store results without same computations many times)
 - Encourages immutable inner types where needed for full safety.
 
 ##### How this fits the SOLID/DRY plan
