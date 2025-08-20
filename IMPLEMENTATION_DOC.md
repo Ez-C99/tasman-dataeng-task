@@ -2,6 +2,17 @@
 
 ## Implementation
 
+### General Overview
+
+- I tend to leave more comments in my code than the strategy I’ve taken with this project but it’s for a reason.
+  - Considering the extensive breakdown and thought process covered by the design doc, this doc and the docstrings, module summaries, branches and PRs throughout, I don’t think all this code **NEEDS** so many comments for the sake of commenting
+  - I’m already trying to provide enough documentation, in and out of the code, to tell the story so I don’t want to add too much bloat to what you read
+- A lot of Python scripts will have `from __future__ import annotations` and that's just to enable postponed evaluation of type annotations
+  - Essentially, all annotations are stored as strings and only resolved when needed (such as by type checkers or tools)
+  - It's especially useful in complex projects, like this, or when using advanced typing features, as it avoids issues with circular imports and allows for more readable type hints
+
+---
+
 ### 0. Starter Files and Config
 
 **Overview**
@@ -486,6 +497,25 @@ Pure functions that:
 - (optionally) enrich a couple of coded fields via `CodelistClient`,
 - return row dicts ready for loading.
 
+You'll see that I declared the 'Bundle' class with a dataclass decorator of the parameter `(frozen=True)`. This means:
+
+- You can’t reassign fields after you create the object (trying raises an error)
+- Only the attribute names are locked; if a field holds a list/dict, its contents can still change.
+- Safe to use as a dict key or in a set (hashable by default).
+- Use immutable types (e.g. tuple) to not change inner data.
+
+This is a practice I'll maintain throughout throughout the scripts wherever necessary, for the following reasons:
+
+- Avoids accidental mutation; objects stay stable after creation.
+- Simplifies reasoning, testing, and debugging (pure transforms).
+- Enables safe reuse: hashable for sets/deduplication/cache.
+- Improves data integrity for ETL, idempotent upserts, and DQ checks.
+- Lowers concurrency & side‑effect risks (read‑only objects).
+- Clear audit trail: raw + derived fields can’t drift pre‑load.
+- Easier refactors (value-object semantics).
+- Facilitates deterministic change detection and memoisation. (store results without same computations many times)
+- Encourages immutable inner types where needed for full safety.
+
 ##### How this fits the SOLID/DRY plan
 
 - **Pure transforms**: no I/O or DB knowledge in `transform.py`.
@@ -534,3 +564,131 @@ In my struggles to get the first integration test working, this is what I found:
 
 - “Please write the SQLAlchemy/psycopg upsert for job with ON CONFLICT and updated_at=now().”
 - "Please give me a quick integration test using `psycopg`"
+
+---
+
+### 6. **Great Expectations (Pre-load Gate)**
+
+**Overview**  
+Small suite: non-nulls on keys, pay range sanity, URL regex, date ordering, ≥1 location per job. Generates Data Docs for review.
+
+#### Tasks
+
+- Build context in `app/tasman_etl/dq/gx/`; checkpoint before DB write (or right after staging).
+- Wire into `runner`.
+
+#### Acceptance Criteria
+
+- Suite passes locally & in CI; failure blocks load and logs summary.
+
+#### Risks/Trade-offs
+
+- Keep expectations lean to avoid test brittleness.
+
+#### Notes
+
+> [!caution] 
+> It's important for the functioning of this implementation of the GE suite to note exceed `pandas<2.0` becasue it breaks the `src/tasman_etl/dq/gx/validate.py` module. This has been reflected in `pyproject.toml` but would need further research down the line if pandas needed to be upgraded.
+
+- Started with a normal plug-n-play gx system that I normally follow for a suite but I was lead down a great learning path of the library when trying to tailor my solution to the wider context of this project. I'll have the LLM generate a summary of my findings below
+
+##### GX public API vs direct factory import (LLM generated)
+
+Pros of public API (import great_expectations as gx; context = gx.get_context()):
+
+- Stability: gx.get_context() is the documented, supported entry point; internal module paths can shift in minor releases.
+- Upgrade resilience: Less likely to break when you bump great-expectations (esp. 0.18 → 0.19+ changes).
+- Maintainability: New contributors instantly recognise the pattern from docs.
+- Deprecation signalling: Public API surfaces warnings earlier; internal imports may bypass helper shims.
+- Easier abstraction: You can wrap gx.get_context() in your own helper for caching/injection in tests.
+- Future modes: Supports keyword args (e.g. mode="ephemeral") without chasing factory signatures.
+
+Cons of public API:
+
+- Slightly broader import (top-level package) versus a targeted function; negligible in practice.
+- Type specificity: Direct factory import sometimes provides clearer types to static analyzers (minor; you can add a cast).
+
+Pros of current direct factory import:
+
+- Explicit: Signals exactly which internal function is used.
+- Marginally minimal import path (very small practical gain).
+- May keep mypy from needing a cast if stubs align (depends on version).
+
+Cons of current approach:
+
+- Relies on internal layout (great_expectations.data_context.data_context.context_factory) that can refactor.
+- Harder for others to map to documentation (cognitive overhead).
+- Risk of silent breakage on library upgrade in a scheduled ECS task (failure mid-run; wastes invocation).
+
+ECS / scheduled EventBridge context:
+
+- Cold start cost: Both approaches pay similar import cost; no material performance difference.
+- Resilience matters more: Scheduled jobs should fail only for real data issues, not library internals moving.
+- Container image longevity: You may upgrade GE less frequently; using public API minimises dormant fragility.
+- Simplified observability: Log messages + warnings are aligned with documented entry points (easier triage).
+
+Recommendation:
+Switch to the public API. Wrap it once so you can cache and mock:
+import great_expectations as gx
+_context = None
+def get_gx_context():
+    global _context
+    if_context is None:
+        _context = gx.get_context()  # optionally mode=\"ephemeral\"
+    return _context
+
+Then call get_gx_context() inside validate_page_jobs. This gives:
+
+- Single place to tweak modes or config directories.
+- Optional caching to avoid repeated initialisation if you validate multiple pages in one run.
+- Clean seam for tests (monkeypatch get_gx_context).
+
+_optional tweak to *has_locations (if desired)*:
+def_has_locations(rows):
+    return next(iter(rows), None) is not None
+
+But leaving it as-is is fine since you pass a list.
+
+Summary: Adopt gx.get_context() via a small wrapper for future-proofing and testability; negligible downside for your ECS workload.
+
+##### `len(list({list_input}))` vs `next(iter({list_input}))` (LLM generated)
+
+Difference when loc_rows is already a list:
+
+- Current code: len(list(loc_rows)) >= 1
+  - list(loc_rows) creates a new list copy (O(n) time, O(n) extra memory).
+  - len(...) then checks size. Wasteful duplication.
+- Lazy check: next(iter(loc_rows), None) is not None
+  - Creates an iterator (O(1)) and fetches one element (O(1)).
+  - No copying; constant extra memory.
+
+Why “perfectly lazy”:
+
+- For a generic iterable (could be a generator), next(iter(...), None) stops after the first element—doesn’t traverse or realise the rest.
+- list(...) forces full materialisation: triggers all iteration side effects, loads everything into memory.
+
+Caveats:
+
+- If loc_rows could be a one-shot iterator you still need that first element later, next() would consume it (you’d lose it). With a list that’s not an issue (lists aren’t consumed).
+- If you always receive a list, simplest is just: return len(loc_rows) > 0 or return bool(loc_rows).
+
+Summary:
+
+- For a list: prefer bool(loc_rows) (fastest, no copy).
+- For arbitrary iterable you don’t need to preserve: next(iter(x), None) is not None (lazy).
+- Avoid len(list(x))—it’s the most expensive form.
+
+##### DQ smoke harness
+
+YI introduced a tiny “DQ smoke harness” to validate a representative page quickly and visibly:
+
+- A cached Great Expectations context via the public API (`gx.get_context()`), plus idempotent creation/retrieval of a pandas datasource and dataframe asset. This keeps repeated page validations cheap and future-proofs against internal module moves.
+- Expectations cover non-nulls, URL regex, pay bounds, and a Python-side check that at least one location row exists. The validator runs directly against a pandas batch and persists/updates the suite if missing.
+- Additional `dq` and further `smoke` commands in the Makefile to quickly run the gx smoke test. This also allows for further automated smoke testing later
+
+#### LLM Prompts
+
+- “What's wrong with my suite?” - fix linting errors
+- "What are the pros and cons of importing the context as the public API versus the approach I've taken here"
+- "What's missing in my transition to the public API?" - trying to avoid linter suppressors and import properly, accounting for edge cases
+- "Computationally, what is the difference between `len(list(loc_rows)) >= 1` and `next(iter(loc_rows), None) is not None` when loc_rows is a list? Also, why is it perfectly lazy to use the latter?"

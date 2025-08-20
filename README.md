@@ -65,10 +65,11 @@ tasman-dataeng-task
 └─ tests
    ├─ integration
    │  └─ test_upsert.py
-   └─ unit
-      ├─ test_models.py
-      └─ test_transform.py
-
+   ├─ unit
+   │  ├─ test_models.py
+   |  └─ test_transform.py
+   └─ smoke
+      └─ test_dq_smoke.py
 ```
 
 ## Quick Start
@@ -76,7 +77,9 @@ tasman-dataeng-task
 ```bash
 make up                   # starts Postgres
 make db-migrate           # applies all SQL migrations
-make test                 # runs tests (which also migrates first)
+make dq                   # runs the targeted DQ smoke test with visible GE output
+make smoke                # runs everything in tests/smoke with -s (no capture)
+make test                 # full suite (lint/type/unit/integration) + db-migrate first
 ```
 
 ## Common Terms
