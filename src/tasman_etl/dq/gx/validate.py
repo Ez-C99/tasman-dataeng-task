@@ -83,7 +83,7 @@ def _has_locations(loc_rows: Iterable[JobLocationRecord]) -> bool:
     :return: True if there are location rows, False otherwise.
     """
     # Check if there are any location rows present.
-    return len(list(loc_rows)) >= 1
+    return next(iter(loc_rows), None) is not None
 
 
 # Cached context instance (lazy init); keeps repeated page validations cheap in one run.
