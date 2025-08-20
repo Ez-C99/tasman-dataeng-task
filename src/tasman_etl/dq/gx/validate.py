@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import threading
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol, cast
@@ -87,21 +88,29 @@ def _has_locations(loc_rows: Iterable[JobLocationRecord]) -> bool:
 
 
 # Cached context instance (lazy init); keeps repeated page validations cheap in one run.
-_GX_CONTEXT = None  # module-private
+_GX_CONTEXT: Any | None = None
+_GX_CONTEXT_LOCK = threading.Lock()
 
 
-def _get_gx_context():  # small indirection for test monkeypatching
+def _get_gx_context() -> Any:
     global _GX_CONTEXT
-    if _GX_CONTEXT is None:
-        # Some versions expose get_context at package root; fallback to factory if absent.
-        getter = getattr(gx, "get_context", None)
-        if getter is None:  # defensive fallback
-            from great_expectations.data_context.data_context.context_factory import (
-                get_context as _gc,
-            )
+    if _GX_CONTEXT is not None:
+        return _GX_CONTEXT
+    with _GX_CONTEXT_LOCK:
+        if _GX_CONTEXT is None:
+            getter = getattr(gx, "get_context", None)
+            if getter is None:
+                from great_expectations.data_context.data_context.context_factory import (
+                    get_context as _gc,
+                )
 
-            getter = _gc
-        _GX_CONTEXT = getter()
+                getter = _gc
+            if not callable(getter):
+                raise RuntimeError("Great Expectations get_context callable not found")
+            try:
+                _GX_CONTEXT = getter()  # optionally: getter(mode=\"ephemeral\")
+            except Exception as exc:  # pragma: no cover
+                raise RuntimeError("Failed to initialize Great Expectations context") from exc
     return _GX_CONTEXT
 
 
@@ -171,6 +180,10 @@ def validate_page_jobs(
                 for a in getattr(pandas_ds, "assets", [])
                 if getattr(a, "name", None) == "jobs_asset"
             )
+            if _asset is None:
+                raise RuntimeError(
+                    "Failed to create or retrieve jobs_asset from pandas datasource assets list"
+                ) from None
     asset = cast("_DataFrameAsset", _asset)
 
     # Idempotent batch definition retrieval/creation
@@ -178,7 +191,9 @@ def validate_page_jobs(
         batch_def = asset.add_batch_definition_whole_dataframe("whole_df")
     except ValueError:
         existing_defs = getattr(asset, "batch_definitions", [])
-        batch_def = next(bd for bd in existing_defs if getattr(bd, "name", None) == "whole_df")
+        batch_def = next(
+            (bd for bd in existing_defs if getattr(bd, "name", None) == "whole_df"), None
+        )
     if batch_def is None:  # defensive typing guard
         raise RuntimeError("Batch definition 'whole_df' could not be resolved")
     batch = batch_def.get_batch(batch_parameters={"dataframe": df})
@@ -214,7 +229,7 @@ def validate_page_jobs(
 
     # Run validation directly (no ValidationDefinition / Checkpoint abstraction)
     suite = validator.get_expectation_suite()
-    # (Optional) persist suite in context if there;s a need to reuse
+    # (Optional) persist suite in context if there's a need to reuse
     try:  # prefer unified method
         context.suites.add_or_update(suite)
     except AttributeError:

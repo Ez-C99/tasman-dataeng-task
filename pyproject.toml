@@ -65,6 +65,9 @@ mypy_path = "$MYPY_CONFIG_FILE_DIR/src"
 
 [tool.pytest.ini_options]
 filterwarnings = [
+  # Suppress known Great Expectations warning about Validator-level `result_format` config not being persisted.
+  # See: https://github.com/great-expectations/great_expectations/issues/7466
+  # This is a temporary workaround until upstream resolves the issue.
   "ignore:`result_format` configured at the Validator-level will not be persisted.:UserWarning",
   "ignore:`Number` field should not be instantiated.*:marshmallow.warnings.ChangedInMarshmallow4Warning",
 ]
