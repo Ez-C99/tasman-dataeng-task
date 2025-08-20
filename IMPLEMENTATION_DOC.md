@@ -497,3 +497,37 @@ Pure functions that:
 - “Please generate the transform tests based on the module”
 
 ---
+
+### 5. **Loader (Idempotent Upserts)**
+
+**Overview**  
+Batch UPSERT into `job` (natural key `MatchedObjectId`), then `job_location`, `job_category`, `job_details`. Use short transactions and `statement_timeout`.
+
+#### Tasks
+
+- Parameterised SQL with `ON CONFLICT DO UPDATE` for each table.
+- Per-page transaction; per-page metrics.
+
+#### Acceptance Criteria
+
+- Re-running a page yields zero duplicates; updates touch `updated_at`.
+
+#### Risks/Trade-offs
+
+- Wider `DO UPDATE` may stamp newer fields; keep columns minimal until needed.
+
+#### Notes
+
+- Use `INSERT ... ON CONFLICT DO UPDATE` for atomic upserts; this is the canonical PostgreSQL pattern.
+- Wrap the per-page load in a single transaction and set a short `statement_timeout` so a slow query can’t stall the run.
+- Send `raw_json` as a JSON value (not a string) via `psycopg.types.json.Json`.
+- **Timeout semantics**: Set a short per-txn timeout via `SET LOCAL statement_timeout = '5s'`. Postgres expects unit-suffixed values as strings; parameter binding isn’t valid for server GUCs.
+- **Upsert pattern**: Use `INSERT … ON CONFLICT DO UPDATE` on `job(position_id)` and child unique keys for atomic idempotency; this is the recommended approach in Postgres for upsert behaviour. 
+- **JSONB writes**: Send `raw_json` using `psycopg.types.json.Json(...)` to ensure proper JSON typing into `jsonb`.
+- **Migrations first**: `integration`/`test` targets now depend on `db-migrate` to remove DDL drift.
+- **Make hygiene**: Consolidated `test` to avoid overriding recipes for the same target (GNU Make keeps the last recipe).
+
+#### LLM Prompts
+
+- “Please write the SQLAlchemy/psycopg upsert for job with ON CONFLICT and updated_at=now().”
+- "Please give me a quick integration test using `psycopg`"

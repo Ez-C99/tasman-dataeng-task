@@ -71,6 +71,14 @@ tasman-dataeng-task
 
 ```
 
+## Quick Start
+
+```bash
+make up                   # starts Postgres
+make db-migrate           # applies all SQL migrations
+make test                 # runs tests (which also migrates first)
+```
+
 ## Common Terms
 
 "FoDE" = Fundamentals of Data Engineering
