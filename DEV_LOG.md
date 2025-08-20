@@ -2,15 +2,37 @@
 
 A diary of the design and development of my solution
 
-## 2025-08-19 - Title
+## 2025-08-19 - ETL Featureset Work
 
 ### Actions
 
-- Description
+- Iterated through a whole bunch of features for the project
+  - [x] starter files & config
+  - [x] bronze capture infra and extraction helpers
+  - [x] initial pydantic validation models
+  - [x] bronze to silver normalisation and transformation
+  - [x] loader with idempotent upserts
+- Next tasks
+  - [x] pre-load gate Great Expectations validation (in progress)
+  - [ ] EventBridge -> ECS RunTask scheduling
+  - [ ] secrets & config
+  - [ ] security & durability (DB and network)
+  - [ ] observability (logs and alarms)
+  - [ ] testing: unit, integration, E2E
+  - [ ] CI/CD with GutHub Actions (*)
+  - [ ] Gold views & serving (*)
+  - [ ] performance & scale hardening (*)
+  - [ ] docs and ADR maintenance
+  - [ ] release & versioning (*)
+
+> [!note]
+>
+> - There's a time constraint on the project so anytthing with "(*)" next to it is of a lower priority tier for the solution, in the context of what's needed to demonstrate a viable E2E solution
+> - Anything asterisked can be spoken about in an interview to explain how I'd do it
 
 ### Notes
 
-- Description
+- Not a lot of sleep over the last 2 days when combining this with life and work responsiblities but nearly ready to deploy
 
 ---
 
