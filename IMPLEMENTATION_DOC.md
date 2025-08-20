@@ -562,6 +562,8 @@ In my struggles to get the first integration test working, this is what I found:
 - “Please write the SQLAlchemy/psycopg upsert for job with ON CONFLICT and updated_at=now().”
 - "Please give me a quick integration test using `psycopg`"
 
+---
+
 ### 6. **Great Expectations (Pre-load Gate)**
 
 **Overview**  
@@ -581,6 +583,9 @@ Small suite: non-nulls on keys, pay range sanity, URL regex, date ordering, ≥1
 - Keep expectations lean to avoid test brittleness.
 
 #### Notes
+
+> [!caution] 
+> It's important for the functioning of this implementation of the GE suite to note exceed `pandas<2.0` becasue it breaks the `src/tasman_etl/dq/gx/validate.py` module. This has been reflected in `pyproject.toml` but would need further research down the line if pandas needed to be upgraded.
 
 - Started with a normal plug-n-play gx system that I normally follow for a suite but I was lead down a great learning path of the library when trying to tailor my solution to the wider context of this project. I'll have the LLM generate a summary of my findings below
 
