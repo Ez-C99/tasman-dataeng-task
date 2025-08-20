@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from datetime import datetime
 from typing import Any, cast
 
@@ -87,8 +86,7 @@ class ApiPositionRemuneration(BaseModel):
             return v
         try:
             return int(float(v))
-        except ValueError as e:
-            logging.error(f"Error converting pay range to int: {e}")
+        except ValueError:
             raise
 
 
@@ -448,7 +446,7 @@ def normalise_item(
         telework_eligible=(details.TeleworkEligible if details else None),
         source_event_time=source_event_time,
         ingest_run_id=ingest_run_id,
-        raw_json=item.model_dump(),  # JSONB friendly dict
+        raw_json=item.model_dump(mode="json"),  # JSONB friendly dict
     )
 
     jd = JobDetailsRecord(
