@@ -120,7 +120,7 @@ def ingest_search_page(
         "categories": 0,
         "grades": 0,
     }
-    with engine.connect() as conn:  # or `psycopg.connect(engine.dsn) as conn``
+    with engine.connect() as conn:  # or `psycopg.connect(engine.dsn) as conn`
         for b in bundles:
             # If using Pydantic for PageBundle in future, uncomment the line below
             # page_bundle = PageBundle(**b.model_dump())
