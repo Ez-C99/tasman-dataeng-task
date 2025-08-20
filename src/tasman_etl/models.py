@@ -353,3 +353,37 @@ class JobDetailsRecord(BaseModel):
     adjudication_type: list[str] = Field(default_factory=list)
     financial_disclosure: bool | None = None
     bargaining_unit_status: bool | None = None
+
+
+class JobLocationRecord(BaseModel):
+    """
+    Model representing a job location.
+    """
+
+    model_config = _BASE_CONFIG
+    loc_idx: int
+    location_name: str | None = None
+    country_code: str | None = None
+    country_sub_division_code: str | None = None
+    city_name: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+
+
+class JobCategoryRecord(BaseModel):
+    """
+    Model representing a job category.
+    """
+
+    model_config = _BASE_CONFIG
+    code: str
+    name: str | None = None
+
+
+class JobGradeRecord(BaseModel):
+    """
+    Model representing a job grade.
+    """
+
+    model_config = _BASE_CONFIG
+    code: str
