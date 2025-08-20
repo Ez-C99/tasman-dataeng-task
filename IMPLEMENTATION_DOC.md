@@ -300,3 +300,45 @@ This separation mirrors SOLID:
 - "Please generate an IAM task Terraform module for me"
 - “Please generate the unit tests for my bronze_s3.py module”
 - Fixing the fiddly minutiae of linting in general
+
+### 2. **Schema & Migration (Silver DDL)**
+
+**Overview**  
+Create normalised core: `job`, `job_location`, `job_category`, `job_details`, plus `ingest_run`. Use JSONB on `job.raw_json` for safety net; add GIN index. Upserts via `INSERT … ON CONFLICT`.
+
+#### Tasks
+
+- Author `001_init.sql` (foreign keys, primary keys, indexes, simple CHECKs).
+- Apply in local Compose and in CI.
+
+#### Acceptance Criteria
+
+- DDL applies cleanly; foreign keys/primary keys enforced; GIN on `raw_json` present.
+
+#### Risks/Trade-offs
+
+- More joins vs. correctness and future evolution.
+
+#### Notes
+
+- **Natural key for idempotency:** `position_id` is the stable announcement code in `MatchedObjectDescriptor`; I'm using a UNIQUE constraint on it and upsert on conflict (atomic insert-or-update), which is the canonical Postgres pattern.
+- **Keep lists relational where it matters:** `job_location`, `job_category`, `job_grade` are N:1 child tables so filtering and indexing stay correct (no CSV anti-patterns).
+  - This is the product of the improved schema vs the simpler 2 table (1:1) schema I originally thought of
+- **Retain the full payload:** `raw_json JSONB` with a GIN index gives “reach-back” and ad-hoc querying without schema churn.
+- **Practical datatypes:** use `INTEGER` for pay (whole dollars) and `NUMERIC(9,6)` for latitude/longitude; all timestamps are `TIMESTAMPTZ`.
+- **Optional full-text:** a stored **generated column** (`tsvector`) on title+summary is easy to add later; it’s a documented feature and can be GIN-indexed.
+
+Images of the Postgres CLI tables from the following successful command runs will be in the PR for this feature.
+
+```bash
+psql "postgresql://postgres:localpw@localhost:5432/usajobs" \
+  -f src/tasman_etl/db/migrations/001_init.sql
+
+\dt                         -- expect job, job_details, job_location, job_category, job_grade
+\d+ job                     -- confirm columns, uk on position_id, indexes
+\di                         -- see trigram/jsonb GIN indexes
+```
+
+#### LLM Prompts
+
+- “Please draft the Postgres DDL for job/job_location/job_category/job_details, based on my schema, with sensible types.”
