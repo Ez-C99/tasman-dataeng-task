@@ -1,8 +1,6 @@
-from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 
-from .http.codelists import CodelistClient
 from .models import (
     ApiResponse,
     JobCategoryRecord,
@@ -50,20 +48,21 @@ def normalise_page(
 # -------- Optional enrichment via codelists (kept minimal & decoupled) --------
 
 
-def enrich_with_codelists(bundles: Iterable[Bundle], codelists: CodelistClient) -> list[Bundle]:
-    """
-    Example: translate pay rate interval code to a label (if present).
-    Extend as needed; keep enrichment optional/pure.
+# def enrich_with_codelists(bundles: Iterable[Bundle], codelists: CodelistClient) -> list[Bundle]:
+#     """
+#     Example: translate pay rate interval code to a label (if present).
+#     Extend as needed; keep enrichment optional/pure.
 
-    :param bundles: The job bundles to enrich.
-    :param codelists: The codelist client to use for enrichment.
-    :return: A list of enriched job bundles.
-    """
-    # rate_map = codelists.get_map("payPlans") if False else {}  # placeholder example; extend later
+#     :param bundles: The job bundles to enrich.
+#     :param codelists: The codelist client to use for enrichment.
+#     :return: A list of enriched job bundles.
+#     """
+#     # rate_map = codelists.get_map("payPlans") if False else {}
+# placeholder example; extend later
 
-    # Currently no extra columns exist for labels; keep codes as-is.
-    # Return the same bundles (no mutation since dataclasses are frozen).
-    return list(bundles)
+#     # Currently no extra columns exist for labels; keep codes as-is.
+#     # Return the same bundles (no mutation since dataclasses are frozen).
+#     return list(bundles)
 
 
 # -------- Row dict mappers (DB loader will consume these) --------
