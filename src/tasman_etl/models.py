@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, computed_field, field_validator
 
@@ -387,3 +387,139 @@ class JobGradeRecord(BaseModel):
 
     model_config = _BASE_CONFIG
     code: str
+
+
+# ------------------------------
+# TRANSFORM: API item -> DTO set
+# ------------------------------
+
+
+def normalise_item(
+    item: ApiSearchResultItem,
+    ingest_run_id: str,
+    source_event_time: datetime | None,
+) -> tuple[
+    JobRecord,
+    JobDetailsRecord,
+    list[JobLocationRecord],
+    list[JobCategoryRecord],
+    list[JobGradeRecord],
+]:
+    """
+    Normalize the API item into the internal data model.
+
+    :param item: The API item to normalize.
+    :param ingest_run_id: The ID of the ingest run.
+    :param source_event_time: The source event time.
+    :return: A tuple containing the normalized job records.
+    """
+    d = item.MatchedObjectDescriptor
+    # mypy: d.details is a computed_field+property (Pydantic) but static type seen as
+    # Callable/property;
+    # cast to the intended union for type checking.
+    details = cast(ApiDetails | None, d.details)
+
+    pay_min = pay_max = None
+    pay_code = None
+    if d.PositionRemuneration:
+        pr = d.PositionRemuneration[0]
+        pay_min = pr.MinimumRange
+        pay_max = pr.MaximumRange
+        pay_code = pr.RateIntervalCode
+
+    job = JobRecord(
+        position_id=d.PositionID,
+        matched_object_id=item.MatchedObjectId,
+        position_uri=d.PositionURI,
+        position_title=d.PositionTitle,
+        organization_name=d.OrganizationName,
+        department_name=d.DepartmentName,
+        apply_uri=d.ApplyURI or [],
+        position_location_display=d.PositionLocationDisplay,
+        pay_min=pay_min,
+        pay_max=pay_max,
+        pay_rate_interval_code=pay_code,
+        qualification_summary=d.QualificationSummary,
+        publication_start_date=d.PublicationStartDate,
+        application_close_date=d.ApplicationCloseDate,
+        position_start_date=d.PositionStartDate,
+        position_end_date=d.PositionEndDate,
+        remote_indicator=(details.RemoteIndicator if details else None),
+        telework_eligible=(details.TeleworkEligible if details else None),
+        source_event_time=source_event_time,
+        ingest_run_id=ingest_run_id,
+        raw_json=item.model_dump(),  # JSONB friendly dict
+    )
+
+    jd = JobDetailsRecord(
+        job_summary=details.JobSummary if details else None,
+        low_grade=details.LowGrade if details else None,
+        high_grade=details.HighGrade if details else None,
+        promotion_potential=details.PromotionPotential if details else None,
+        organization_codes=details.OrganizationCodes if details else None,
+        relocation=details.Relocation if details else None,
+        hiring_path=(details.HiringPath or []) if details else [],
+        mco_tags=(details.MCOTags or []) if details else [],
+        total_openings=details.TotalOpenings if details else None,
+        agency_marketing_statement=details.AgencyMarketingStatement if details else None,
+        travel_code=details.TravelCode if details else None,
+        apply_online_url=details.ApplyOnlineUrl if details else None,
+        detail_status_url=details.DetailStatusUrl if details else None,
+        major_duties="; ".join(details.MajorDuties) if (details and details.MajorDuties) else None,
+        education=details.Education if details else None,
+        requirements=details.Requirements if details else None,
+        evaluations=details.Evaluations if details else None,
+        how_to_apply=details.HowToApply if details else None,
+        what_to_expect_next=details.WhatToExpectNext if details else None,
+        required_documents=details.RequiredDocuments if details else None,
+        benefits=details.Benefits if details else None,
+        benefits_url=details.BenefitsUrl if details else None,
+        benefits_display_default_text=details.BenefitsDisplayDefaultText if details else None,
+        other_information=details.OtherInformation if details else None,
+        key_requirements=(details.KeyRequirements or []) if details else [],
+        within_area=details.WithinArea if details else None,
+        commute_distance=details.CommuteDistance if details else None,
+        service_type=details.ServiceType if details else None,
+        announcement_closing_type=details.AnnouncementClosingType if details else None,
+        agency_contact_email=details.AgencyContactEmail if details else None,
+        security_clearance=details.SecurityClearance if details else None,
+        drug_test_required=details.DrugTestRequired if details else None,
+        position_sensitivity=details.PositionSensitivity if details else None,
+        adjudication_type=(details.AdjudicationType or []) if details else [],
+        financial_disclosure=details.FinancialDisclosure if details else None,
+        bargaining_unit_status=details.BargainingUnitStatus if details else None,
+    )
+
+    locs = [
+        JobLocationRecord(
+            loc_idx=i,
+            location_name=pl.LocationName,
+            country_code=pl.CountryCode,
+            country_sub_division_code=pl.CountrySubDivisionCode,
+            city_name=pl.CityName,
+            latitude=pl.Latitude,
+            longitude=pl.Longitude,
+        )
+        for i, pl in enumerate(d.PositionLocation or [])
+    ]
+
+    cats = [JobCategoryRecord(code=c.Code, name=c.Name) for c in (d.JobCategory or [])]
+    grades = [JobGradeRecord(code=g.Code) for g in (d.JobGrade or [])]
+
+    return job, jd, locs, cats, grades
+
+
+# ------------------------------
+# PAGE-LEVEL PARSING HELPERS
+# ------------------------------
+
+
+def parse_page_json(json_text: str) -> ApiResponse:
+    """
+    Parse the JSON text from a page response.
+
+    :param json_text: The JSON text to parse.
+    :return: An ApiResponse object.
+    """
+    # Pydantic v2 JSON entrypoint
+    return ApiResponse.model_validate_json(json_text)
