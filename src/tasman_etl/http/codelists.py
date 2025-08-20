@@ -72,3 +72,16 @@ class CodelistClient:
 
         self._cache[list_name] = (time.time(), code_map)
         return code_map
+
+    def translate(self, list_name: str, code: str | None) -> str | None:
+        """
+        Translate a code in a codelist to its value.
+
+        :param list_name: Name of the codelist.
+        :param code: Code to translate.
+        :return: Translated value or None if not found.
+        """
+        if not code:
+            return None
+        mapping = self.get_map(list_name)
+        return mapping.get(code)
