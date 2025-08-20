@@ -493,7 +493,7 @@ You'll see that I declared the 'Bundle' class with a dataclass decorator of the 
 - Safe to use as a dict key or in a set (hashable by default).
 - Use immutable types (e.g. tuple) to not change inner data.
 
-This is a practice I'll maintain throughout throughout the scriiptsm wherever necessary, for the following reasons:
+This is a practice I'll maintain throughout throughout the scripts wherever necessary, for the following reasons:
 
 - Avoids accidental mutation; objects stay stable after creation.
 - Simplifies reasoning, testing, and debugging (pure transforms).
