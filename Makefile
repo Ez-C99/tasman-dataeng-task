@@ -1,4 +1,4 @@
-.PHONY: fmt lint type unit integration test build up down links db-migrate dq smoke
+.PHONY: fmt lint type unit integration test build up down links db-migrate dq smoke run
 
 fmt:
 	ruff check --select I --fix .
@@ -61,3 +61,6 @@ dq:
 smoke:
 	# -s disables output capture so GE tqdm progress bars & warnings are visible; remove -q for full detail
 	python -m pytest -s tests/smoke
+
+run:
+	python -m tasman_etl.runner.run
