@@ -446,7 +446,7 @@ def normalise_item(
         telework_eligible=(details.TeleworkEligible if details else None),
         source_event_time=source_event_time,
         ingest_run_id=ingest_run_id,
-        raw_json=item.model_dump(mode="json"),  # JSONB friendly dict
+        raw_json=item.model_dump(mode="json"),  # JSONB serialise-able
     )
 
     jd = JobDetailsRecord(

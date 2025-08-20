@@ -342,3 +342,42 @@ psql "postgresql://postgres:localpw@localhost:5432/usajobs" \
 #### LLM Prompts
 
 - “Please draft the Postgres DDL for job/job_location/job_category/job_details, based on my schema, with sensible types.”
+
+### 3. **Validation Models (Pydantic v2)**
+
+**Overview**  
+Define strict-enough Pydantic models for USAJOBS responses and normalised records. Goals: (1) coerce messy strings to clean types, (2) reject impossible values early, (3) produce DTOs that map 1:1 to Silver tables.
+
+#### Tasks
+
+- Model the USAJOBS raw response (only used fields; ignore the rest).
+- Add validators for:
+  - Pay min/max (strings → `int`, ensure `min <= max`).
+  - Booleans arriving as “Yes/No” → `bool`.
+  - Dates → `datetime` (UTC assumed).
+- Provide normalised DTOs: `JobRecord`, `JobDetailsRecord`, `JobLocationRecord`, `JobCategoryRecord`, `JobGradeRecord`.
+- A helper to parse an entire page (`model_validate_json`) and yield normalised records.
+
+#### Acceptance Criteria
+
+- Parsing a real page yields:
+  - All `JobRecord` fields typed (ints, bools, datetimes).
+  - Lists handled (locations/categories/grades).
+  - Invariants enforced (e.g., `pay_min <= pay_max`).
+- Unit test covers a happy-path item and a couple of edge cleanups (e.g., “Yes” → `True`).
+
+#### Risks/Trade-offs
+
+- Making the models too strict can break on minor upstream drift. I should keep strictness per-field where it matters (pay/date/booleans) and allow extra fields to be ignored for forward compatibility.
+
+#### Notes
+
+> FoDE lens:
+>
+> - Plan for failure: validate at boundaries; fail fast.
+> - Loosely coupled & evolvable: ignore unknown fields; keep `raw_json` stored in Silver for “reach-back.”
+> - Software hygiene: clear separation—parsing in models, I/O elsewhere.
+
+#### LLM Prompts
+
+- “Please give me a function to normalise my API items into data transfer objects”
