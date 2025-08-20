@@ -309,3 +309,47 @@ class JobRecord(BaseModel):
         if v is not None and pay_min is not None and pay_min > v:
             raise ValueError("pay_min cannot exceed pay_max")
         return v
+
+
+class JobDetailsRecord(BaseModel):
+    """
+    Model representing the details of a job in the system.
+    """
+
+    model_config = _BASE_CONFIG
+    job_summary: str | None = None
+    low_grade: str | None = None
+    high_grade: str | None = None
+    promotion_potential: str | None = None
+    organization_codes: str | None = None
+    relocation: str | None = None
+    hiring_path: list[str] = Field(default_factory=list)
+    mco_tags: list[str] = Field(default_factory=list)
+    total_openings: str | None = None
+    agency_marketing_statement: str | None = None
+    travel_code: str | None = None
+    apply_online_url: str | None = None
+    detail_status_url: str | None = None
+    major_duties: str | None = None
+    education: str | None = None
+    requirements: str | None = None
+    evaluations: str | None = None
+    how_to_apply: str | None = None
+    what_to_expect_next: str | None = None
+    required_documents: str | None = None
+    benefits: str | None = None
+    benefits_url: str | None = None
+    benefits_display_default_text: bool | None = None
+    other_information: str | None = None
+    key_requirements: list[str] = Field(default_factory=list)
+    within_area: str | None = None
+    commute_distance: str | None = None
+    service_type: str | None = None
+    announcement_closing_type: str | None = None
+    agency_contact_email: str | None = None
+    security_clearance: str | None = None
+    drug_test_required: bool | None = None
+    position_sensitivity: str | None = None
+    adjudication_type: list[str] = Field(default_factory=list)
+    financial_disclosure: bool | None = None
+    bargaining_unit_status: bool | None = None
