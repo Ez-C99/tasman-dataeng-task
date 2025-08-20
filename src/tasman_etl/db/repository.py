@@ -44,8 +44,8 @@ def upsert_page(
     :return: The job ID of the upserted job.
     """
     with conn.transaction(), conn.cursor() as cur:  # combined contexts (SIM117)
-        # keep the txn bounded
-        cur.execute("SET LOCAL statement_timeout = %s;", (statement_timeout,))
+        # keep the txn bounded (LOCAL scope for this txn)
+        cur.execute("SET LOCAL statement_timeout = '5s'")  # literal, not a %s param
 
         job_id = _upsert_job(cur, bundle.job)
 
