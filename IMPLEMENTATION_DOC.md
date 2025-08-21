@@ -837,4 +837,14 @@ Removed / Not Present
 - “PageBundle is a dataclass model but I could expand it in the future to be a Pydantic model, along with a lot of the other models in the project. How do I future-proof for this in my orchestration”
 - " I wanted to use `engine.connect()` so I directly use the module I imported. Is there any difference of betterment to using `psycopg.connect(engine.dsn)` instead?"
 
-### 8. Further Work and Onwards
+### Implementation Doc — Epilogue: the journey & lessons
+
+This project was deliberately engineered in “medallion” layers with strong boundaries: HTTP fetch, bronze persistence, validation, pure transforms, and idempotent loads. That separation paid off during the inevitable troubleshooting:
+
+- Migrations first: early failures (“relation does not exist”, updated_at mismatch) exposed the need to always run DDL before tests. I wired db-migrate into make test to remove drift.
+- GE reality check: aligning with the public GE API and caching the context removed brittle imports and cut init cost. I kept the suite intentionally lean.
+- HTTP surprises: USAJOBS returned empty 200s until I set an explicit vendor Accept (application/hr+json). I added retries with jitter and better logging so future incidents are diagnosable.
+- Type hygiene vs. velocity: boto3-stubs helped locally but conflicted with runtime typing; I removed the stubs and typed the S3 helpers pragmatically to keep linters happy without blocking runtime.
+- Infra wrangling: a tag typo produced …etlatest; I switched to a two-step build/tag/push flow. The ClusterNotFound came from an unset env var; I tightened commands to print the ARNs and avoid backgrounded shells.
+Keep it boring: default VPC + public IP made “first deploy” straightforward. I’ve captured the hardening path (private subnets, NAT, KMS, alarms) for next iterations.
+- What I’d do next with more time: immutable image tags in TF, structured JSON logs + alarms, RDS with SSL, and bounded concurrency with backpressure. But for the minimum viable pipeline, this is a correct, observable, and repeatable baseline that others can run with minimal ceremony.
