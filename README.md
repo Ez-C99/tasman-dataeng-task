@@ -160,7 +160,7 @@ DQ_ENFORCE=true
 
 # Default search params (used by orchestration)
 KEYWORD=data
-LOCATION_NAME=Chicago, Illinois
+LOCATION_NAME=Chicago
 MAX_PAGES=1
 ```
 
@@ -283,7 +283,7 @@ terraform apply \
 
 * `usajobs_auth_secret_name` (or set `usajobs_auth_key` to have TF create one in dev)
 * `db_url_secret_name` (preferred) or `db_url` (dev only)
-* `schedule_expression` (default hourly: `cron(0 * * * ? *)`)
+* `schedule_expression` (default daily: `cron(0 0 * * ? *)`)
 * `keyword`, `location_name`, `max_pages`
 * `container_cpu`, `container_memory`
 
@@ -375,15 +375,6 @@ make down          # docker compose down -v
 ## 📄 License
 
 MIT (see `LICENSE`).
-
----
-
-## 🙌 Acknowledgements
-
-* USAJOBS API
-* Great Expectations
-* Postgres / psycopg
-* AWS ECS, ECR, EventBridge, CloudWatch, S3
 
 ---
 

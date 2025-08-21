@@ -32,7 +32,7 @@ variable "bronze_bucket_name" {
 variable "schedule_expression" {
   description = "EventBridge schedule (cron or rate)"
   type        = string
-  default     = "cron(0 * * * ? *)"
+  default = "cron(0 0 * * ? *)"
 }
 
 variable "dq_enforce" {
@@ -99,7 +99,7 @@ variable "keyword" {
 variable "location_name" {
   description = "Default location name"
   type        = string
-  default     = "Chicago, Illinois"
+  default     = "Chicago"
 }
 
 variable "max_pages" {
