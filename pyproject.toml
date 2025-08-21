@@ -72,3 +72,6 @@ filterwarnings = [
   "ignore:`Number` field should not be instantiated.*:marshmallow.warnings.ChangedInMarshmallow4Warning",
 ]
 testpaths = ["tests"]
+markers = [
+  "integration: marks tests that perform database integration (deselect with '-m \"not integration\"')",
+]
