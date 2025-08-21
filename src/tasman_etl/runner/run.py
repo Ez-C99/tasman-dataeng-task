@@ -8,7 +8,7 @@ import logging
 from datetime import UTC, datetime
 from typing import TypedDict
 
-from tasman_etl.config import Settings
+from tasman_etl.config import get_settings
 from tasman_etl.db.engine import engine
 from tasman_etl.db.repository import PageBundle, upsert_page
 from tasman_etl.dq.gx.validate import validate_page_jobs
@@ -105,7 +105,7 @@ def ingest_search_page(
     jobs = [b.job for b in bundles]
     locs = [loc for b in bundles for loc in b.locations]
     vx = validate_page_jobs(jobs, locs)
-    settings = Settings()
+    settings = get_settings()
     enforce = settings.dq_enforce if dq_enforce is None else dq_enforce
     if enforce and not vx.passed:
         # Fail hard if gate is on
