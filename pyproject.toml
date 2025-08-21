@@ -23,7 +23,7 @@ dependencies = [
   "python-dotenv>=1.0",             # local .env dev
   "boto3>=1.34",                    # S3 bronze (optional)
   "great-expectations>=0.18.0",     # data quality gate
-  "pandas>=1.5,<2.0",
+  "pandas>=1.5",
   "typing-extensions>=4.11",
 ]
 
@@ -58,7 +58,7 @@ select = ["E","F","I","B","UP","PIE","C4","SIM"]
 ignore = ["UP038"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 strict = false
 warn_unused_ignores = true
 mypy_path = "$MYPY_CONFIG_FILE_DIR/src"
