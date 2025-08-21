@@ -21,7 +21,7 @@ These three docs are the backbone of the solution. They explain *why* each desig
 
 * **Task Brief — annotated requirements (Goodnotes)**  
   👉 [docs/Brief_Insights_and_Requirements.pdf](docs/Brief_Insights_and_Requirements.pdf)  
-  The original task brief marked up by hand with notes. Captures the problem framing, constraints, and early insights that shaped priorities, acceptance criteria, and scope
+  The original task brief marked up by hand with notes. Captures the problem framing, constraints, and early insights that shaped priorities, acceptance criteria, and scope.
 
 * **Design Doc — the “why” & architecture**  
   👉 [DESIGN_DOC.md](DESIGN_DOC.md)  
