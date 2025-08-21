@@ -1,4 +1,4 @@
-# Tasman Data Engineering Task — USAJOBS ETL
+# Ezra Chamba Tasman Data Engineering Task — USAJOBS ETL
 
 End-to-end pipeline that pulls jobs from the USAJOBS API, persists raw pages to **S3 Bronze**, validates the data with **Great Expectations**, normalises to DTOs, and **upserts** into **Postgres**. Designed for local dev with Docker/Make, and cloud scheduling with **EventBridge → ECS RunTask** (Terraform).
 
