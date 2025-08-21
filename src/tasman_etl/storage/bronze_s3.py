@@ -17,7 +17,7 @@ from typing import Any
 import boto3
 from botocore.config import Config
 
-BRONZE_BUCKET = os.environ["BRONZE_S3_BUCKET"]
+BRONZE_BUCKET = os.environ.get("BRONZE_S3_BUCKET")
 BRONZE_PREFIX = os.environ.get("BRONZE_S3_PREFIX", "bronze/usajobs").rstrip("/")
 
 
@@ -78,7 +78,14 @@ def _to_gz_bytes(doc: Mapping[str, Any]) -> bytes:
 
 def put_json_gz(key: str, doc: Mapping[str, Any]) -> dict:
     """
-    Upload a gzipped JSON document to S3.
+    Upload a gzipped JSON document to S3 with local dev fallback.
+
+    Preflight logic:
+      - If BRONZE_S3_BUCKET and AWS creds appear available -> upload to S3.
+      - Else write deterministically gzipped JSON to ./bronze_local/<key> and return a stub
+        response.
+
+    This enables running the ingest end-to-end locally without exporting AWS credentials yet.
 
     :param key: The S3 key for the object.
     :param doc: The document to upload.
@@ -86,6 +93,27 @@ def put_json_gz(key: str, doc: Mapping[str, Any]) -> dict:
     """
     body = _to_gz_bytes(doc)
     sha256_hex = hashlib.sha256(body).hexdigest()
+
+    have_bucket = bool(BRONZE_BUCKET)
+    # Basic heuristic: both access key & secret or a session token OR a profile (skip check).
+    have_creds_env = bool(
+        os.getenv("AWS_ACCESS_KEY_ID") and os.getenv("AWS_SECRET_ACCESS_KEY")
+    ) or os.getenv("AWS_SESSION_TOKEN")
+
+    if not (have_bucket and have_creds_env):
+        # Local fallback
+        root = os.path.abspath("bronze_local")
+        local_path = os.path.join(root, key)
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        with open(local_path, "wb") as f:
+            f.write(body)
+        return {
+            "local_fallback": True,
+            "path": local_path,
+            "sha256_hex": sha256_hex,
+            "reason": "missing bucket or creds",
+        }
+
     return s3_client().put_object(
         Bucket=BRONZE_BUCKET,
         Key=key,
