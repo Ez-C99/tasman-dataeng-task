@@ -693,3 +693,148 @@ YI introduced a tiny “DQ smoke harness” to validate a representative page qu
 - "What are the pros and cons of importing the context as the public API versus the approach I've taken here"
 - "What's missing in my transition to the public API?" - trying to avoid linter suppressors and import properly, accounting for edge cases
 - "Computationally, what is the difference between `len(list(loc_rows)) >= 1` and `next(iter(loc_rows), None) is not None` when loc_rows is a list? Also, why is it perfectly lazy to use the latter?"
+
+### 7. **Scheduling (EventBridge → ECS RunTask)**
+
+**Overview**  
+Orchestrate the helpers and run the ETL process locally. Run the container on a cron schedule with retries/visibility via CloudWatch & DLQ.
+
+#### Tasks
+
+- Orchestrate the helpers into the main ETL flow
+- Terraform: cluster, task definition, role/policies, schedule.
+- Parameterise schedule via variables.
+
+#### Acceptance Criteria
+
+- Task pulls from the USA jobs API, completes transformations and loads into the DB
+- Task runs on schedule; manual “Run now” works; failures visible.
+
+#### Risks/Trade-offs
+
+- Failures during the ETL process
+- Cron drift/timezones—document schedule in UTC.
+
+#### Notes
+
+- The HTTP client returns `request_dict` / `response_dict` in the exact shape the bronze `persist_raw_page` method expects.
+- Settings: I read `DQ_ENFORCE` with the `pydantic-settings` class. Later I could expand `Settings` to also hold the USAJOBS config (for now the client reads env directly to keep this change minimal).
+
+##### `engine.connect()` vs `psycopg.connect(engine.dsn)` and why I chose `engine` (LLM summarised)
+
+- Single responsibility: Callers don’t need to know DSN layout; if you later add options (timeouts, prepared statement cache, tracing), you change only `Engine.connect`.
+- Central policy: You can inject defaults (e.g. `connect_timeout`, `options='-c statement_timeout=5s'`, autocommit) in one place.
+- Testability: Easy to monkeypatch or subclass `Engine` (swap a fake that records calls) without touching callers.
+- Future pooling: You could evolve `Engine.connect()` to pull from a simple pool or return an async wrapper; callers stay stable.
+- Readability: `with engine.connect()` communicates intent (“use shared engine config”) vs “raw psycopg call”.
+
+**When to stick with `psycopg.connect(engine.dsn)`:**
+
+- One-off script where indirection adds no value.
+- You need connection arguments per call that don’t belong in a global method; (you can still pass them through `engine.connect(autocommit=True)`).
+
+##### API Request header streamlining in `src/tasman_etl/http/usajobs.py`
+
+- User-Agent: REQUIRED (your registered email)
+- Authorization-Key: REQUIRED (API key)
+- Accept: application/hr+json (vendor type) first, then application/json (q=0.9) then */* (q=0.8) for graceful fallback
+- Host, Accept-Encoding, Connection: omitted (requests sets them automatically with sensible values; compression still works)
+- Optional override: pass accept="*/*" (or whatever) when constructing UsaJobsClient if you need to experiment.
+
+Rationale:
+
+- Minimal required auth + explicit media type ensures body returned (we observed empty responses before).
+- Avoids over-specifying headers the library manages; reduces surface for mismatch.
+- Keeps wildcard at lower preference so we prefer structured JSON vendor types.
+  
+##### Last work completed on the task
+
+Application / ETL
+
+- Added resilient USAJOBS client: proper Accept header, retry with backoff + jitter, logging of attempts, empty payload guard.
+- Implemented ingestion orchestration (`main()` + page loop) with env-driven params (KEYWORD, LOCATION_NAME, MAX_PAGES, DQ_ENFORCE).
+- Added bronze layer writer (`bronze_s3.put_json_gz`) with gzip, deterministic bytes, SHA256 checksum, and local fallback when S3/creds absent.
+- Implemented transform + upsert logic to Postgres with idempotent key handling.
+- Simplified configuration: replaced Pydantic Settings with lightweight dotenv helpers; deprecated direct `usajobs_auth_key`/`db_url` variables (kept as fallbacks).
+- Added Great Expectations validation gate (optional via DQ_ENFORCE).
+
+Secrets & Security
+
+- Integrated AWS Secrets Manager:
+  - USAJOBS auth key: supports existing secret (data source) or managed (if value provided).
+  - DB URL secret: data source lookup; conditional env injection.
+- Unified IAM policy for secrets read (scoped to concrete ARNs).
+- Made `db_url` optional (default empty) and only set container env when no secret provided.
+- S3 bucket: encryption (SSE-S3), lifecycle rules (bronze), TLS-only policy.
+- IAM roles: execution role (standard managed policy), task role with least-privilege S3 RW + secrets access.
+
+Infrastructure (Terraform)
+
+- Added ECR repository for ETL image.
+- Added CloudWatch log group.
+- Added ECS cluster, task definition (Fargate X86_64).
+- Added EventBridge scheduled rule + target invoking ECS RunTask.
+- Added security group (egress-only) and default VPC subnet discovery.
+- Task definition: conditional `secrets` block for USAJOBS_AUTH_KEY and DB_URL; conditional plain env var fallback for DB_URL.
+- Fixed invalid attribute (`arnWithoutRevision`) and removed unsupported `regexreplace`; simplified RunTask policy to current revision ARN.
+- Introduced variables for schedule, resource sizing (CPU, memory), search params, bronze prefix, secrets names.
+- Outputs for ECR repo URL, cluster ARN, task definition ARN, schedule rule, log group, (and earlier bucket).
+- Added optional DB URL secret handling locals and data sources.
+
+Testing & Quality
+
+- Unit tests for bronze S3 persistence, models, transform, runner ingestion logic, validation gate.
+- Integration tests for end-to-end ingest + upsert, and smoke DQ test.
+- Type hygiene: removed runtime dependency on boto3-stubs (guarded under TYPE_CHECKING); resolved PutObject type issues.
+- Lint/style compliance (Ruff, mypy) adjustments (e.g., removed unused imports, fixed B904 pattern).
+
+Runtime / Deployment
+
+- Multi-stage Dockerfile (build wheels then slim runtime as non-root user).
+- Added guidance + commands for cross-arch build (linux/amd64) on Apple Silicon.
+- Implemented image tagging strategy recommendation (latest + git SHA) and manual push workflow.
+- Ensured container env mapping matches Terraform variables/secrets.
+
+Config & Variables
+
+- Deprecated plaintext `usajobs_auth_key` and `db_url` (still present with defaults) in favor of secrets.
+- Added `db_url_secret_name` and default secret naming convention (`tasman/dev/...`).
+- Added `dq_enforce`, `keyword`, `location_name`, `max_pages`, `bronze_prefix`, `container_cpu`, `container_memory`, `schedule_expression`.
+
+Data Layer
+
+- Postgres upsert pattern with idempotency key (per design decision doc).
+- Bronze storage path structure `bronze/usajobs/...` (prefix variable).
+
+Documentation / Design
+
+- Architecture & ADR docs extended (runtime extractor, scheduling, database, secrets mgmt, paging limits, security/durability, data quality, integration tests).
+- README / design docs (assumed updated to reflect ECS + secrets; if not, pending minor doc sync).
+
+Known Fixes / Adjustments After Initial Attempts
+
+- Made `db_url` optional to stop Terraform prompting once secret introduced.
+- Corrected IAM policy resource list for RunTask (removed unsupported helpers).
+- Adjusted container env composition to avoid empty DB_URL var overshadowing secret.
+
+Pending / Potential Next Steps (not implemented)
+
+- Immutable image tag parameterization in Terraform (currently relies on latest unless manually changed).
+- Private networking (move off default VPC public subnets + restrict egress).
+- KMS CMK for S3 bucket & secrets.
+- Metrics / structured logging enhancements.
+- Automated secret rotation / RDS provisioning (if needed).
+- CI pipeline for build → tag → Terraform apply.
+
+Removed / Not Present
+
+- No persistent local state management additions beyond existing Terraform state.
+- No direct RDS provisioning (DB assumed external).
+- No additional queues or event buses beyond EventBridge schedule.
+
+#### LLM Prompts
+
+- “PageBundle is a dataclass model but I could expand it in the future to be a Pydantic model, along with a lot of the other models in the project. How do I future-proof for this in my orchestration”
+- " I wanted to use `engine.connect()` so I directly use the module I imported. Is there any difference of betterment to using `psycopg.connect(engine.dsn)` instead?"
+
+### 8. Further Work and Onwards
