@@ -1,5 +1,5 @@
 """
-This module provides a client for the USAJOBS API.
+A client for the USAJOBS API.
 """
 
 from __future__ import annotations
@@ -39,7 +39,16 @@ class UsaJobsClient:
         timeout: float = 15.0,
         accept: str | None = None,
     ) -> None:
-        """Initialise the USAJOBS API client."""
+        """
+        Initialise the USAJOBS API client.
+
+        :param host: The API host (default: data.usajobs.gov)
+        :param user_agent: The User-Agent string (required)
+        :param auth_key: The API key (required)
+        :param base_url: The base URL for API requests (optional)
+        :param timeout: The request timeout in seconds (default: 15.0)
+        :param accept: The Accept header for API requests (optional)
+        """
         try:  # load .env lazily if available
             from tasman_etl.config import load_env
 
@@ -77,7 +86,20 @@ class UsaJobsClient:
         backoff_base: float = 0.75,
         backoff_cap: float = 6.0,
     ) -> tuple[dict, dict]:
-        """Fetch one page from the Search API and return (request_dict, response_dict)."""
+        """
+        Fetch one page from the Search API and return (request_dict, response_dict).
+
+        :param keyword: The search keyword (required)
+        :param location_name: The location name (optional)
+        :param radius_miles: The search radius in miles (optional)
+        :param results_per_page: The number of results per page (default: 50)
+        :param page: The page number to retrieve (default: 1)
+        :param fields: The fields to include in the response (optional)
+        :param retry: The number of retry attempts for transient errors (default: 3)
+        :param backoff_base: The base backoff time in seconds (default: 0.75)
+        :param backoff_cap: The maximum backoff time in seconds (default: 6.0)
+        :return: A tuple containing the request dictionary and the response dictionary
+        """
         params: dict[str, Any] = {
             "Keyword": keyword,
             "ResultsPerPage": results_per_page,
