@@ -2,6 +2,62 @@
 
 A diary of the design and development of my solution
 
+⸻
+
+2025-08-21 / 2025-08-29 – Cloud infra, image build/push & first run attempts
+
+Actions
+
+- Applied Terraform for ECS/ECR/EventBridge + roles & log group (eu-west-2). Outputs captured for ecr_repo_url, ecs_cluster_arn, task_definition_arn, event_rule_name, and log_group.
+- Built & pushed container to ECR:
+- First attempt used buildx --push with two -t flags and produced a malformed tag (…-etl**atest**); switched to build → tag → push and it worked.
+- Logged in to ECR with aws ecr get-login-password | docker login … before pushing.  ￼
+- Verified task definition references the :latest image after push; confirmed latest family revision via aws ecs describe-task-definition.
+- Manual run attempt via aws ecs run-task initially failed with ClusterNotFoundException (ran before exporting CLUSTER_ARN from TF output). Re-queried outputs, set envs, and prepared clean run command using proper awsvpcConfiguration.  ￼ ￼
+- Prepared log tailing via aws logs tail `/ecs/<log-group>` --follow for live troubleshooting.  ￼
+- EventBridge rule created on the cron schedule (UTC).  ￼
+
+Notes
+
+- The tag snafu came from the first multi-line buildx command; the safer pattern is: build locally (--load), then docker tag and docker push each tag.
+- When triggering ad-hoc runs, make sure CLUSTER_ARN and the default VPC subnets are set/queried; use the same security group TF created.
+- Logs will land under `/ecs/<project>-<env>-etl`; use aws logs tail to watch retries/GE gate output in real time.  ￼
+
+Next
+
+- Trigger a manual run now that the image is in ECR and env is set; if it exits early, tail the log group and then describe-tasks to grab the stopped reason/exit code.  ￼
+- Flip EventBridge to your desired cadence (all cron in UTC).  ￼
+
+Handy one-liners (for future me)
+
+```bash
+# 1) Docker login to ECR (auth)
+
+aws ecr get-login-password --region "$AWS_REGION" --profile "$AWS_PROFILE" \
+  | docker login --username AWS --password-stdin "$(echo "$REPO_URL" | cut -d/ -f1)"
+
+# 2) Run task once (Fargate, public subnets, SG from TF)
+
+aws ecs run-task \
+  --cluster "$CLUSTER_ARN" \
+  --launch-type FARGATE \
+  --task-definition "$(terraform -chdir=infra/terraform output -raw task_definition_arn)" \
+  --network-configuration "awsvpcConfiguration={subnets=$(aws ec2 describe-subnets --filters Name=default-for-az,Values=true --query 'Subnets[0].SubnetId' --output text --region $AWS_REGION),assignPublicIp=ENABLED,securityGroups=$(aws ec2 describe-security-groups --filters Name=group-name,Values=$(basename $(terraform -chdir=infra/terraform output -raw ecs_cluster_arn) | sed 's/-cluster/-etl-sg/'))}"
+
+# 3) Tail logs while it runs
+
+aws logs tail "/ecs/$(terraform -chdir=infra/terraform output -raw log_group | sed 's|/ecs/||')" \
+  --follow --region "$AWS_REGION" --profile "$AWS_PROFILE"
+
+# 4) Inspect last task’s status / exit code if it stopped
+
+TASK_ARN=$(aws ecs list-tasks --cluster "$CLUSTER_ARN" --desired-status STOPPED --query 'taskArns[-1]' --output text)
+aws ecs describe-tasks --cluster "$CLUSTER_ARN" --tasks "$TASK_ARN" \
+  --query 'tasks[0].{lastStatus:lastStatus,exitCode:containers[0].exitCode,reason:stoppedReason}'
+```
+
+---
+
 ## 2025-08-19 - ETL Featureset Work
 
 ### Actions

@@ -1,6 +1,4 @@
-############################################
 # Trust policies (who can assume the roles)
-############################################
 
 # ECS tasks assume both roles
 data "aws_iam_policy_document" "ecs_tasks_trust" {
@@ -14,9 +12,9 @@ data "aws_iam_policy_document" "ecs_tasks_trust" {
   }
 }
 
-############################################
+
 # Execution role (agent-level permissions)
-############################################
+
 
 resource "aws_iam_role" "ecs_execution_role" {
   name               = "${var.project}-${var.env}-ecs-exec"
@@ -30,9 +28,8 @@ resource "aws_iam_role_policy_attachment" "ecs_exec_managed" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-############################################
-# Task role (your app permissions)
-############################################
+
+# Task role (app permissions)
 
 resource "aws_iam_role" "ecs_task_role" {
   name               = "${var.project}-${var.env}-ecs-task"
@@ -75,8 +72,34 @@ resource "aws_iam_role_policy_attachment" "task_attach_bronze" {
   policy_arn = aws_iam_policy.task_bronze_policy.arn
 }
 
-############################################
+# Secrets Manager read access (scoped to specific secret if provided)
+data "aws_iam_policy_document" "secrets_read" {
+  count = (var.usajobs_auth_secret_name != "" || var.db_url_secret_name != "") ? 1 : 0
+  statement {
+    sid     = "GetSecretValue"
+    effect  = "Allow"
+    actions = ["secretsmanager:GetSecretValue"]
+    resources = compact([
+      local.usajobs_auth_secret_arn,
+      local.db_url_secret_arn,
+    ])
+  }
+}
+
+resource "aws_iam_policy" "secrets_read" {
+  count  = (var.usajobs_auth_secret_name != "" || var.db_url_secret_name != "") ? 1 : 0
+  name   = "${var.project}-${var.env}-secrets-read"
+  policy = data.aws_iam_policy_document.secrets_read[0].json
+}
+
+resource "aws_iam_role_policy_attachment" "task_attach_secrets" {
+  count     = (var.usajobs_auth_secret_name != "" || var.db_url_secret_name != "") ? 1 : 0
+  role      = aws_iam_role.ecs_task_role.name
+  policy_arn = aws_iam_policy.secrets_read[0].arn
+}
+
+
 # Outputs (use in ECS task definition later)
-############################################
+
 output "ecs_task_role_arn"      { value = aws_iam_role.ecs_task_role.arn }
 output "ecs_execution_role_arn" { value = aws_iam_role.ecs_execution_role.arn }
