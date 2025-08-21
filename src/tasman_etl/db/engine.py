@@ -23,19 +23,11 @@ def _load_db_url() -> str:
     """
     # Try pydantic-settings first (works with Settings class if `db_url` exists)
     try:
-        from tasman_etl.config import (
-            Settings,  # local import to avoid hard dependency at import-time
-        )
+        from tasman_etl.config import db_url as _db_url  # lightweight helper
 
-        settings = Settings()  # will read env vars automatically
-        db_url = getattr(settings, "db_url", None)
-        if isinstance(db_url, str) and db_url:
-            return db_url
+        return _db_url()
     except Exception:
-        # If Settings isn't present or doesn't define db_url, just use env/default
-        pass
-
-    return os.getenv("DB_URL", _DEFAULT_DB_URL)
+        return os.getenv("DB_URL", _DEFAULT_DB_URL)
 
 
 @dataclass(frozen=True)
