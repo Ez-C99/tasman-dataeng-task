@@ -19,6 +19,10 @@ End-to-end pipeline that pulls jobs from the USAJOBS API, persists raw pages to 
 
 These three docs are the backbone of the solution. They explain *why* each design choice was made, *how* the system evolved, and *what* was implemented—so reviewers can follow the journey, not just the code.
 
+* **Task Brief — annotated requirements (Goodnotes)**  
+  👉 [docs/Brief_Insights_and_Requirements.pdf](docs/Brief_Insights_and_Requirements.pdf)  
+  The original task brief marked up by hand with notes. Captures the problem framing, constraints, and early insights that shaped priorities, acceptance criteria, and scope
+
 * **Design Doc — the “why” & architecture**  
   👉 [DESIGN_DOC.md](DESIGN_DOC.md)  
   Scope, constraints, target personas, and end-to-end architecture. Includes trade-offs, data model rationale, paging/rate-limits, medallion layers, and scheduling strategy. Use this to understand the north star before diving into code.  
