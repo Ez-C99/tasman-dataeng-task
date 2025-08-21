@@ -15,28 +15,116 @@ End-to-end pipeline that pulls jobs from the USAJOBS API, persists raw pages to 
 
 ---
 
+## 📚 Project Docs (read this first)
+
+These three docs are the backbone of the solution. They explain *why* each design choice was made, *how* the system evolved, and *what* was implemented—so reviewers can follow the journey, not just the code.
+
+* **Design Doc — the “why” & architecture**  
+  👉 [DESIGN_DOC.md](DESIGN_DOC.md)  
+  Scope, constraints, target personas, and end-to-end architecture. Includes trade-offs, data model rationale, paging/rate-limits, medallion layers, and scheduling strategy. Use this to understand the north star before diving into code.  
+  Related: Architectural Decision Records (ADRs) in [`docs/architecture/decisions/`](docs/architecture/decisions/index.md).
+
+* **Implementation Doc — the “how” & what shipped**  
+  👉 [IMPLEMENTATION_DOC.md](IMPLEMENTATION_DOC.md)  
+  Feature-grouped narrative from Bronze → Transform → Loader → DQ → Scheduling. Each section lists tasks, acceptance criteria, risks/trade-offs, and notes. It ties commits/PRs to the plan and calls out important deltas and gotchas encountered during build.
+
+* **Dev Log — the daily story & context**  
+  👉 [DEV_LOG.md](DEV_LOG.md)  
+  A chronological diary capturing decisions, detours, and timeboxing. This is helpful for interviewers and maintainers to see priorities, pressure points, and how the approach adapted under constraints.
+
+**How to review (suggested flow):**
+
+1) Skim the **Design Doc** for intent and architecture.  
+2) Read the **Implementation Doc** sections 1–7 to see how the intent became code.  
+3) Scan the **Dev Log** to understand sequencing and trade-off timing.  
+4) Jump back here to acquaint youself with and run the project locally or deploy to ECS.
+
+---
+
 ## 🗺️ Repo at a glance
 
 ```plaintext
-src/
-  tasman_etl/
-    config.py                # dotenv helpers (env / DB URL / settings)
-    http/usajobs.py          # resilient USAJOBS client (backoff + headers)
-    storage/bronze_s3.py     # put_json_gz(), bronze_key(), utc_now_iso()
-    models.py                # Pydantic v2 DTOs for raw + normalised
-    transform.py             # normalise_page() -> Bundles
-    db/
-      migrations/001_init.sql
-      engine.py              # psycopg engine wrapper
-      repository.py          # upsert_page() + helpers
-    dq/gx/validate.py        # Great Expectations validation (pandas)
-    runner/run.py            # ingest_search_page() orchestration
-tests/
-  unit/, integration/, smoke/
-infra/terraform/             # ECS/ECR/EventBridge/S3/IAM
-docker/
-  Dockerfile, docker-compose.yml
-Makefile, pyproject.toml, .env.example, DESIGN_DOC.md, DEV_LOG.md
+tasman-dataeng-task
+├─ .dockerignore
+├─ .pre-commit-config.yaml
+├─ DESIGN_DOC.md
+├─ DEV_LOG.md
+├─ IMPLEMENTATION_DOC.md
+├─ LICENSE
+├─ Makefile
+├─ README.md
+├─ docker
+│  ├─ Dockerfile
+│  └─ docker-compose.yml
+├─ docs
+│  ├─ Brief_Insights_and_Requirements.pdf
+│  └─ architecture
+│     └─ decisions
+│        ├─ 0001-runtime-extractor.md
+│        ├─ 0002-scheduling.md
+│        ├─ 0003-database.md
+│        ├─ 0004-data-model-shape.md
+│        ├─ 0005-idempotency-key-upsert.md
+│        ├─ 0006-secrets-management.md
+│        ├─ 0007-api-paging-and-limits.md
+│        ├─ 0008-db-security-and-durability.md
+│        ├─ 0009-data-quality.md
+│        ├─ 0010-integration-testing.md
+│        └─ index.md
+├─ infra
+│  └─ terraform
+│     ├─ .terraform.lock.hcl
+│     ├─ iam_task.tf
+│     ├─ main.tf
+│     ├─ outputs.tf
+│     ├─ providers.tf
+│     ├─ s3_bronze.tf
+│     ├─ secrets.tf
+│     └─ variables.tf
+├─ pyproject.toml
+├─ scripts
+├─ src
+│  └─ tasman_etl
+│     ├─ __init__.py
+│     ├─ config.py
+│     ├─ db
+│     │  ├─ __init__.py
+│     │  ├─ engine.py
+│     │  ├─ migrations
+│     │  │  ├─ 001_init.sql
+│     │  │  └─ 002_child_timestamps.sql
+│     │  └─ repository.py
+│     ├─ dq
+│     │  ├─ __init__.py
+│     │  └─ gx
+│     │     └─ validate.py
+│     ├─ http
+│     │  ├─ __init__.py
+│     │  ├─ codelists.py
+│     │  └─ usajobs.py
+│     ├─ logging_setup.py
+│     ├─ models.py
+│     ├─ runner
+│     │  ├─ __init__.py
+│     │  └─ run.py
+│     ├─ storage
+│     │  ├─ __init__.py
+│     │  └─ bronze_s3.py
+│     └─ transform.py
+└─ tests
+   ├─ conftest.py
+   ├─ integration
+   │  ├─ test_run_ingest_integration.py
+   │  └─ test_upsert.py
+   ├─ smoke
+   │  └─ test_dq_smoke.py
+   └─ unit
+      ├─ test_bronze_s3.py
+      ├─ test_models.py
+      ├─ test_run_ingest.py
+      ├─ test_transform.py
+      └─ test_validate.py
+
 ```
 
 ---
