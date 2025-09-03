@@ -1,4 +1,4 @@
-# Tasman Data Engineering Task — USAJOBS ETL
+# Ezra Chamba Tasman Data Engineering Task — USAJOBS ETL
 
 End-to-end pipeline that pulls jobs from the USAJOBS API, persists raw pages to **S3 Bronze**, validates the data with **Great Expectations**, normalises to DTOs, and **upserts** into **Postgres**. Designed for local dev with Docker/Make, and cloud scheduling with **EventBridge → ECS RunTask** (Terraform).
 
@@ -18,6 +18,10 @@ End-to-end pipeline that pulls jobs from the USAJOBS API, persists raw pages to 
 ## 📚 Project Docs (read this first)
 
 These three docs are the backbone of the solution. They explain *why* each design choice was made, *how* the system evolved, and *what* was implemented—so reviewers can follow the journey, not just the code.
+
+* **Task Brief — annotated requirements (Goodnotes)**  
+  👉 [docs/Brief_Insights_and_Requirements.pdf](docs/Brief_Insights_and_Requirements.pdf)  
+  The original task brief marked up by hand with notes. Captures the problem framing, constraints, and early insights that shaped priorities, acceptance criteria, and scope.
 
 * **Design Doc — the “why” & architecture**  
   👉 [DESIGN_DOC.md](DESIGN_DOC.md)  
