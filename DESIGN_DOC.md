@@ -628,7 +628,7 @@ Effectively all the inferred data types are kept the same apart from the followi
 
 #### `"PositionSensitivitiy"`
 
-> [!warning] 
+> [!warning]
 > There's a legacy typo in this key so it will need to be accounted for
 >
 > - For the sake of future-proofing (say if they correct it later) the solution needs to be able to take the correct spelling as well seamlessly
