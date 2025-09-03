@@ -191,6 +191,9 @@ pre-commit install
 # Start Postgres (and optional local etl container)
 make up
 
+# Export the correct DB URL for local runs (in case .env isn't being read)
+export DB_URL='postgresql://postgres:localpw@localhost:5432/usajobs'
+
 # Apply DB migrations (idempotent)
 make db-migrate
 

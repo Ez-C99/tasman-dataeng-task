@@ -55,6 +55,8 @@ def test_put_json_gz_parameters(monkeypatch, bronze_env):
             return {"ETag": '"deadbeef"'}
 
     monkeypatch.setattr(bronze_env, "s3_client", lambda: FakeS3())
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "dummy")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "dummy")
     doc = {"x": 42}
     key = bronze_env.bronze_key("RUNID", 12, date=dt.date(2024, 5, 6))
     resp = bronze_env.put_json_gz(key, doc)
