@@ -267,6 +267,51 @@ s3://<bucket>/<prefix>/date=YYYY/MM/DD/run=<run_id>/page=NNNN.json.gz
 * **Deterministic gzip** (mtime=0) and SHA-256 checksum stored in object metadata.
 * Bronze envelope contains `request`, `response` (headers + payload), and `ingest` metadata.
 
+### Local Bronze Ingestion Run
+
+#### 1) Ensure env for region and bucket/prefix are set (example)
+
+  ```bash
+  export AWS_REGION=eu-west-2
+  export BRONZE_S3_BUCKET=dev-tasman-task-usajobs
+  export BRONZE_S3_PREFIX=bronze/usajobs
+  ```
+
+#### 2) Export credentials from your AWS profile into env (safe for local dev only)
+
+```bash
+export AWS_ACCESS_KEY_ID=$(aws configure get aws_access_key_id --profile tasman-dev)
+export AWS_SECRET_ACCESS_KEY=$(aws configure get aws_secret_access_key --profile tasman-dev)
+export AWS_SESSION_TOKEN=$(aws configure get aws_session_token --profile tasman-dev || true)
+```
+
+#### 3) Verify the credentials work
+
+```bash
+aws sts get-caller-identity --region "$AWS_REGION"
+```
+
+#### 4) Run a small persist-only script
+
+```bash
+python - <<'PY'
+from tasman_etl.runner import run as run_mod
+from tasman_etl.http.usajobs import UsaJobsClient
+client = UsaJobsClient()
+req, resp = client.fetch_search_page(keyword="data engineering", location_name="Chicago, Illinois", radius_miles=50, results_per_page=25, page=1)
+key = run_mod.persist_raw_page(run_id="local-manual", page=1, request_dict=req, response_dict=resp)
+print("Bronze key written:", key)
+PY
+```
+
+#### 5) Confirm the object in S3
+
+```bash
+aws s3 ls "s3://${BRONZE_S3_BUCKET}/${BRONZE_S3_PREFIX}/" --recursive --region "$AWS_REGION"
+# or grep for the run id
+aws s3 ls "s3://${BRONZE_S3_BUCKET}/" --recursive --region "$AWS_REGION" | grep local-manual
+```
+
 ---
 
 ## ☁️ Cloud deployment (ECS + EventBridge)
